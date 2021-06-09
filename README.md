@@ -55,7 +55,7 @@ git clone https://github.com/TanwayLab/TanwayLidarSDK.git
   定义SDK实例对象，仅参数与实时连接雷达时不同，其他一致。参数：.pcap文件路径、雷达型号、雷达的IP地址、数据接收端口。
 
   ```
-  TanwayLidarSDK<PointXYZ> lidar(".\\test.pcap", LT_TensorPro, "192.168.111.51", 5600);
+  TanwayLidarSDK<PointXYZ> lidar("./test.pcap", LT_TensorPro, "192.168.111.51", 5600);
   lidar.RegPointCloudCallback(pointCloudCallback);
   lidar.RegGPSCallback(gpsCallback);
   lidar.RegExceptionCallback(exceptionCallback);
