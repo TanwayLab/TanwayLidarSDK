@@ -73,6 +73,7 @@ public:
 	void RegExceptionCallback(const std::function<void(const TWException&)>& callback);
 
 	void SetPackageCache(std::shared_ptr<PackageCache> packageCachePtr){ m_packageCachePtr = packageCachePtr; }
+	void SetLidarType(TWLidarType lidarType){m_lidarType = lidarType;}
 	void SetMutex(std::mutex* mutex){ m_mutex = mutex; }
 
 private:
@@ -308,6 +309,7 @@ void DecodePackage<PointT>::BeginDecodePackageData()
 			DecodeGPSData(packagePtr->m_szData);
 			continue;
 		}
+
 		switch (m_lidarType)
 		{
 		case LT_TensorLite:

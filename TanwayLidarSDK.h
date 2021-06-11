@@ -113,6 +113,7 @@ TanwayLidarSDK<PointT>::TanwayLidarSDK(std::string lidarIP, std::string localIP,
 	else
 	{
 		m_decodePackagePtr = decodePackagePtr;
+		m_decodePackagePtr->SetLidarType(lidarType);
 		m_decodePackagePtr->SetPackageCache(m_packageCache);
 		m_decodePackagePtr->SetMutex(&m_mutexE);
 	}
@@ -130,6 +131,7 @@ TanwayLidarSDK<PointT>::TanwayLidarSDK(std::string pcapPath, std::string lidarIP
 	else
 	{
 		m_decodePackagePtr = decodePackagePtr;
+		m_decodePackagePtr->SetLidarType(lidarType);
 		m_decodePackagePtr->SetPackageCache(m_packageCache);
 		m_decodePackagePtr->SetMutex(&m_mutexE);
 	}
