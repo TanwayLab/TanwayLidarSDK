@@ -20,11 +20,11 @@ git clone https://github.com/TanwayLab/TanwayLidarSDK.git
 
 - ##### Windows平台
 
-  MSVC（VS2015已测试），将开发包的src文件夹和TanwayLidarSDK.h文件直接拷贝至工程中，如果仅使用本SDK进行测试，可以直接将demo文件夹下的Demo_UseSDK.cpp文件导入到工程中，并作为程序入口（demo文件中含有main()入口），进行编译即可；集成到具体项目中使用可直接将文件夹TanwayLidarSDK下除demo文件夹外的源码拷贝至开发项目中，并添加所有.h文件即可使用。
+  MSVC（VS2015已测试），将开发包的src文件夹和TanwayLidarSDK.h文件直接拷贝至工程中，如果仅使用本SDK进行测试，可以直接将demo文件夹下的Demo_UseSDK.cpp文件导入到工程中，并作为程序入口（demo文件中含有main()函数入口），进行编译即可；集成到具体项目中使用可直接将文件夹TanwayLidarSDK下除demo文件夹外的源码拷贝至开发项目中，并添加所有.h文件即可使用。
 
 - ##### Ubuntu平台
 
-  g++ (Ubuntu 7.5.0-3ubuntu1~18.04已测试) ，如果仅使用本SDK进行测试，可进入到下载完成后的TanwayLidarSD目录下，执行make命令，编译成功后执行./run_demo命令，即可运行示例程序；集成到具体项目中可直接使用除demo文件夹外的源码进行开发。
+  g++ (Ubuntu 7.5.0-3ubuntu1~18.04已测试) ，如果仅使用本SDK进行测试，可进入到下载完成后的TanwayLidarSDK目录下，执行make命令，编译成功后执行./run_demo命令，即可运行示例程序；集成到具体项目中可直接使用除demo文件夹外的源码进行开发。
 
 ## 4 接口的使用示例
 
