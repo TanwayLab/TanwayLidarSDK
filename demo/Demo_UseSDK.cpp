@@ -41,6 +41,8 @@ struct PointXYZ
 	float z;
 	int channel;
 	//float intensity;
+	unsigned int t_sec;         /* The value represents seconds since 1900-01-01 00:00:00 (the UNIX epoch).*/ 
+	unsigned int t_usec;        /* remaining microseconds */
 };
 
 void pointCloudCallback(TWPointCloud<PointXYZ>::Ptr pointCloud)
@@ -90,10 +92,12 @@ int main()
 	/*
 	*using pcap file to replay.
 	*/
-	//TanwayLidarSDK<PointXYZ> lidar("./testTensorPro.pcap", "192.168.111.51", 5600, LT_TensorPro, true);
+	//TanwayLidarSDK<PointXYZ> lidar("./5678_32.pcap", "192.168.111.51", 5600, LT_TSP0332, true);
 	//lidar.RegPointCloudCallback(pointCloudCallback);
 	//lidar.RegGPSCallback(gpsCallback);
 	//lidar.RegExceptionCallback(exceptionCallback);
+	//lidar.SetCorrectedAngleToScope192(0.0f, 0.1f, 0.2f);
+	//lidar.SetCorrectedAngleToTSP0332(0.0f, -6.0f);
 	//lidar.Start();
 	
 

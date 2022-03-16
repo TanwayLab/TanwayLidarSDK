@@ -44,7 +44,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
-
+#include <time.h>
 
 //#include <netinet/in.h>
 
@@ -54,6 +54,7 @@
 #include <netdb.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <unistd.h>
 //#include <netinet/in.h>
 #elif _WIN32

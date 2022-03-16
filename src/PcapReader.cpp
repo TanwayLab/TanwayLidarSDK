@@ -136,7 +136,10 @@ void PcapReader::ThreadLoadProcess()
 				long long diff_usecond = 0;
 				if (pcap_pkt_hdr.tv_sec == last_tv_sec)
 				{
-					diff_usecond = pcap_pkt_hdr.tv_usec - last_tv_usec;
+					if (pcap_pkt_hdr.tv_usec <= last_tv_usec)
+						diff_usecond = 0;
+					else
+						diff_usecond = (long long)(pcap_pkt_hdr.tv_usec) - last_tv_usec;
 				}else if (pcap_pkt_hdr.tv_sec > last_tv_sec)
 				{
 					diff_usecond = (pcap_pkt_hdr.tv_sec - last_tv_sec - 1) * 1000000 +  (1000000- last_tv_usec) + pcap_pkt_hdr.tv_usec;
@@ -150,6 +153,7 @@ void PcapReader::ThreadLoadProcess()
 				last_tv_usec = pcap_pkt_hdr.tv_usec;
 
 				beginPlayTime += std::chrono::microseconds(diff_usecond);
+
 				std::this_thread::sleep_until(beginPlayTime);
 			}
 			
@@ -195,6 +199,8 @@ void PcapReader::ThreadLoadProcess()
 			//data pack
 			TWUDPPackage::Ptr udp_data(new TWUDPPackage);
 			udp_data->m_length = udp_hdr.GetLength() - sizeof(UDPHdr);
+			udp_data->t_sec = pcap_pkt_hdr.tv_sec;
+			udp_data->t_usec = pcap_pkt_hdr.tv_usec;
 			readSize = inStream.read(udp_data->m_szData, udp_data->m_length).gcount();
 			if (readSize != udp_data->m_length)
 			{

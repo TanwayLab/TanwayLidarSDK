@@ -20,7 +20,7 @@ git clone https://github.com/TanwayLab/TanwayLidarSDK.git
 
 - ##### Windows平台
 
-  MSVC（VS2015已测试），将开发包的src文件夹和TanwayLidarSDK.h文件直接拷贝至工程中，如果仅使用本SDK进行测试，可以直接将demo文件夹下的Demo_UseSDK.cpp文件导入到工程中，并作为程序入口（demo文件中含有main()函数入口），进行编译即可；集成到具体项目中使用可直接将文件夹TanwayLidarSDK下除demo文件夹外的源码拷贝至开发项目中，并添加所有.h文件即可使用。
+  MSVC（VS2015已测试），将开发包的src文件夹和TanwayLidarSDK.h文件直接拷贝至工程中，如果仅使用本SDK进行测试，可以直接将demo文件夹下的Demo_UseSDK.cpp文件导入到工程中，并作为程序入口（demo文件中含有main()入口），进行编译即可；集成到具体项目中使用可直接将文件夹TanwayLidarSDK下除demo文件夹外的源码拷贝至开发项目中，并添加所有.h文件即可使用。
 
 - ##### Ubuntu平台
 
@@ -64,7 +64,9 @@ git clone https://github.com/TanwayLab/TanwayLidarSDK.git
 
 ## 5 历史版本描述
 
-| 版本号 | 更新内容 |
-| ------ | -------- |
-| v1.0.0 |          |
+| 版本号 | 更新时间       | 更新内容                            |
+| ------ | -------------- | ----------------------------------- |
+| v1.0.0 |                |                                     |
+| v1.0.1 | 2021年12月22日 | 增加点云帧时间戳和单点时间戳        |
+| v1.0.2 | 2022年03月15日 | 增加对TSP03-32、Scope-192雷达的支持 |
 
