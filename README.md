@@ -69,4 +69,5 @@ git clone https://github.com/TanwayLab/TanwayLidarSDK.git
 | v1.0.0 |                |                                     |
 | v1.0.1 | 2021年12月22日 | 增加点云帧时间戳和单点时间戳        |
 | v1.0.2 | 2022年03月15日 | 增加对TSP03-32、Scope-192雷达的支持 |
+| v1.0.3 | 2022年03月22日 | 修正Scope-192水平角度解算           |
 

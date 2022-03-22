@@ -922,7 +922,7 @@ void DecodePackage<PointT>::DecodeScope192(char* udpData)
 			hexMirror = hexMirror << 2;
 			faceIndex = hexMirror >> 6;
 
-			double hA = 0.5 * horizontalAngle * m_calRA;
+			double hA = 0.5 * (horizontalAngle + 10.0) * m_calRA;
 			double hA_sin = sin(hA);
 			double hA_cos = cos(hA);
 
