@@ -144,6 +144,8 @@ protected:
 	double m_verticalChannelAngle64_sin_vA_RA[64] = { 0.0 };
 	double m_skewing_sin_scope[3] = { 0.0 };
 	double m_skewing_cos_scope[3] = { 0.0 };
+	double m_rotate_scope_sin = sin(-10.0 * m_calRA);
+	double m_rotate_scope_cos = cos(-10.0 * m_calRA);
 
 private:
 	std::shared_ptr<PackageCache> m_packageCachePtr;
@@ -347,8 +349,8 @@ DecodePackage<PointT>::DecodePackage(std::shared_ptr<PackageCache> packageCacheP
 	run_exit.store(false);
 
 	//Scope-192
-	double ScopeB_Elevation_A = 0.1;
-	double ScopeC_Elevation_A = 0.2;
+	double ScopeB_Elevation_A = 0.12;
+	double ScopeC_Elevation_A = 0.24;
 	m_skewing_sin_scope[0] = sin(0.0 * m_calRA);
 	m_skewing_sin_scope[1] = sin(ScopeB_Elevation_A * m_calRA);
 	m_skewing_sin_scope[2] = sin(ScopeC_Elevation_A * m_calRA);
@@ -590,9 +592,13 @@ void DecodePackage<PointT>::UseDecodePointScope_192(int echo, int sepIndex, int 
 
 	double intensity = hexPulseWidth * m_calPulse;
 
-	double x = L * (m_verticalChannelAngle64_cos_vA_RA[channel - 1] * x_cal_1 + m_verticalChannelAngle64_sin_vA_RA[channel - 1] * x_cal_2);
-	double y = L * (m_verticalChannelAngle64_cos_vA_RA[channel - 1] * y_cal_1 + m_verticalChannelAngle64_sin_vA_RA[channel - 1] * y_cal_2);
-	double z = -L * (m_verticalChannelAngle64_cos_vA_RA[channel - 1] * z_cal_1 + m_verticalChannelAngle64_sin_vA_RA[channel - 1] * z_cal_2);
+	double x_tmp = L * (m_verticalChannelAngle64_cos_vA_RA[channel - 1] * x_cal_1 + m_verticalChannelAngle64_sin_vA_RA[channel - 1] * x_cal_2);
+	double y_tmp = L * (m_verticalChannelAngle64_cos_vA_RA[channel - 1] * y_cal_1 + m_verticalChannelAngle64_sin_vA_RA[channel - 1] * y_cal_2);
+	double z_tmp = -L * (m_verticalChannelAngle64_cos_vA_RA[channel - 1] * z_cal_1 + m_verticalChannelAngle64_sin_vA_RA[channel - 1] * z_cal_2);
+
+	double x = x_tmp * m_rotate_scope_cos - y_tmp * m_rotate_scope_sin;
+	double y = x_tmp * m_rotate_scope_sin + y_tmp * m_rotate_scope_cos;
+	double z = z_tmp;
 
 	PointT basic_point;
 	setX(basic_point, static_cast<float>(x));

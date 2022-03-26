@@ -125,7 +125,7 @@ void NetworkReader::ThreadProcessPointCloud()
 		run_exit_pcloud.store(true);
 		return;
 	}
-
+	int error_count = 0;
 	while (run_read)
 	{
 		TWUDPPackage::Ptr udp_data(new TWUDPPackage);
@@ -145,7 +145,11 @@ void NetworkReader::ThreadProcessPointCloud()
 			else
 			{
 				USE_EXCEPTION_ERROR(TWException::TWEC_ERROR_SOCKET_RECV_POINT, std::string("The point cloud socket received failed and will exit!"));
-				break;
+				error_count++;
+				if (error_count >= 10)
+				{
+					break;
+				}
 			}
 		}
 
@@ -222,7 +226,7 @@ void NetworkReader::ThreadProcessGPS()
 		run_exit_gps.store(true);
 		return;
 	}
-
+	int error_count = 0;
 	while (run_read)
 	{
 		TWUDPPackage::Ptr udp_data(new TWUDPPackage);
@@ -242,7 +246,11 @@ void NetworkReader::ThreadProcessGPS()
 			else
 			{
 				USE_EXCEPTION_ERROR(TWException::TWEC_ERROR_SOCKET_RECV_GPS, std::string("The gps socket received failed and will exit!"));
-				break;
+				error_count++;
+				if (error_count >= 10)
+				{
+					break;
+				}
 			}
 		}
 
