@@ -66,7 +66,7 @@ class DecodePackage
 {
 public:
 	DecodePackage(std::shared_ptr<PackageCache> packageCachePtr, TWLidarType lidarType, std::mutex* mutex);
-	DecodePackage(){};
+	DecodePackage();
 	virtual ~DecodePackage();
 
 	void Start();
@@ -78,9 +78,11 @@ public:
 	void SetLidarType(TWLidarType lidarType){m_lidarType = lidarType;}
 	void SetCorrectionAngleToTSP0332(float angle1, float angle2);
 	void SetCorrectionAngleToScope192(float angle1, float angle2, float angle3);
+	void SetMoveAngleToDuetto(float leftMoveAngle, float rightMoveAngle);
 	void SetMutex(std::mutex* mutex){ m_mutex = mutex; }
 
 private:
+	void InitBasicVariables();
 	void BeginDecodePackageData();
 	
 
@@ -90,6 +92,7 @@ private:
 	void DecodeScope(char* udpData);
 	void DecodeTensorPro0332(char* udpData, unsigned int t_sec, unsigned int t_usec);
 	void DecodeScope192(char* udpData);
+	void DecodeDuetto(char* udpData);
 
 	void DecodeGPSData(char* udpData);	//decode gps date
 
@@ -99,6 +102,7 @@ protected:
 	virtual void UseDecodePointTSP03_32(int echo, double horAngle, int channel, float hexL, float hexPulseWidth, int offset, char* data, unsigned int t_sec, unsigned int t_usec);
 	virtual void UseDecodePointScope(int echo, int sepIndex, int faceIndex, double horAngle, int channel, float hexL, float hexPulseWidth);
 	virtual void UseDecodePointScope_192(int echo, int sepIndex, int faceIndex, double horAngle, int channel, float hexL, float hexPulseWidth);
+	virtual void UseDecodePointDuetto(int echo, int leftOrRight, int faceIndex, double horAngle, int seq, int channel, float hexL, float hexPulseWidth);
 	virtual void ProcessPointCloud(){};
 
 protected:
@@ -115,7 +119,7 @@ protected:
 	double m_calPulse = 0.004577 / 0.15;
 	double m_calSimple = 500 * 2.997924 / 10.f / 16384.f / 2;
 
-	//TSP03-32、Scope162 temporary variable
+	//TSP03-32、Scope162、Duetto temporary variable
 	double x_cal_1 = 0;
 	double x_cal_2 = 0;
 	double y_cal_1 = 0;
@@ -146,6 +150,32 @@ protected:
 	double m_skewing_cos_scope[3] = { 0.0 };
 	double m_rotate_scope_sin = sin(-10.0 * m_calRA);
 	double m_rotate_scope_cos = cos(-10.0 * m_calRA);
+
+	//Duetto
+	float m_verticalChannelsAngle_Duetto16L[16] =
+	{
+		-3.75782f, -3.25777f, -2.75729f, -2.25646f, -1.75533f, -1.25397f, -0.75245f, -0.25083f,
+		0.250827f, 0.752447f, 1.253969f, 1.755328f, 2.256457f, 2.757293f, 3.25777f, 3.757823f
+	};
+
+	float m_verticalChannelsAngle_Duetto16R[16] =
+	{
+		-3.51152f, -3.00987f, -2.50823f, -2.00658f, -1.50494f, -1.00329f, -0.50165f, 0.0f,
+		0.501645f, 1.003224f, 1.504673f, 2.005925f, 2.506916f, 3.00758f, 3.507853f, 4.00767f
+	};
+	double m_verticalChannelAngle_Duetto16L_cos_vA_RA[16] = { 0.f };
+	double m_verticalChannelAngle_Duetto16L_sin_vA_RA[16] = { 0.f };
+	double m_verticalChannelAngle_Duetto16R_cos_vA_RA[16] = { 0.f };
+	double m_verticalChannelAngle_Duetto16R_sin_vA_RA[16] = { 0.f };
+	double m_leftMoveAngle = -30.0;
+	double m_rightMoveAngle = 210.0;
+	double m_skewing_sin_duetto[3];
+	double m_skewing_cos_duetto[3];
+	double m_rotate_duetto_sinL;
+	double m_rotate_duetto_cosL;
+	double m_rotate_duetto_sinR;
+	double m_rotate_duetto_cosR;
+
 
 private:
 	std::shared_ptr<PackageCache> m_packageCachePtr;
@@ -178,6 +208,18 @@ template <typename PointT>
 void DecodePackage<PointT>::RegExceptionCallback(const std::function<void(const TWException&)>& callback)
 {
 	m_funcException = callback;
+}
+
+template <typename PointT>
+void DecodePackage<PointT>::SetMoveAngleToDuetto(float leftMoveAngle, float rightMoveAngle)
+{
+	m_leftMoveAngle = -leftMoveAngle;
+	m_rightMoveAngle = 180.0 + rightMoveAngle;
+
+	m_rotate_duetto_sinL = sin(m_leftMoveAngle * m_calRA);  //-30.0
+	m_rotate_duetto_cosL = cos(m_leftMoveAngle * m_calRA);  //
+	m_rotate_duetto_sinR = sin(m_rightMoveAngle * m_calRA);  //210.0
+	m_rotate_duetto_cosR = cos(m_rightMoveAngle * m_calRA);  //
 }
 
 template <typename PointT>
@@ -345,6 +387,18 @@ template <typename PointT>
 DecodePackage<PointT>::DecodePackage(std::shared_ptr<PackageCache> packageCachePtr, TWLidarType lidarType, std::mutex* mutex): 
 	m_packageCachePtr(packageCachePtr), m_lidarType(lidarType), m_mutex(mutex)
 {
+	InitBasicVariables();
+}
+
+template <typename PointT>
+DecodePackage<PointT>::DecodePackage()
+{
+	InitBasicVariables();
+}
+
+template <typename PointT>
+void DecodePackage<PointT>::InitBasicVariables()
+{
 	run_decode.store(false);
 	run_exit.store(false);
 
@@ -375,11 +429,35 @@ DecodePackage<PointT>::DecodePackage(std::shared_ptr<PackageCache> packageCacheP
 
 	for (int i = 0; i < 16; i++)
 	{
-		//计算
 		double vA = m_verticalChannelAngle16[i];
 		m_verticalChannelAngle16_cos_vA_RA[i] = cos(vA * m_calRA);
 		m_verticalChannelAngle16_sin_vA_RA[i] = sin(vA * m_calRA);
 	}
+
+	//Duetto
+	for (int i = 0; i < 16; i++)
+	{
+		double vA_L = m_verticalChannelsAngle_Duetto16L[i];
+		m_verticalChannelAngle_Duetto16L_cos_vA_RA[i] = cos(vA_L * m_calRA);
+		m_verticalChannelAngle_Duetto16L_sin_vA_RA[i] = sin(vA_L * m_calRA);
+
+		double vA_R = m_verticalChannelsAngle_Duetto16R[i];
+		m_verticalChannelAngle_Duetto16R_cos_vA_RA[i] = cos(vA_R * m_calRA);
+		m_verticalChannelAngle_Duetto16R_sin_vA_RA[i] = sin(vA_R * m_calRA);
+	}
+	double DuettoA_Elevation = 4.5;
+	double DuettoB_Elevation = 0.0;
+	double DuettoC_Elevation = -4.5;
+	m_skewing_sin_duetto[0] = sin(DuettoA_Elevation * m_calRA);
+	m_skewing_sin_duetto[1] = sin(DuettoB_Elevation * m_calRA);
+	m_skewing_sin_duetto[2] = sin(DuettoC_Elevation * m_calRA);
+	m_skewing_cos_duetto[0] = cos(DuettoA_Elevation * m_calRA);
+	m_skewing_cos_duetto[1] = cos(DuettoB_Elevation * m_calRA);
+	m_skewing_cos_duetto[2] = cos(DuettoC_Elevation * m_calRA);
+	m_rotate_duetto_sinL = sin(m_leftMoveAngle * m_calRA);  //
+	m_rotate_duetto_cosL = cos(m_leftMoveAngle * m_calRA);  //
+	m_rotate_duetto_sinR = sin(m_rightMoveAngle * m_calRA);  //
+	m_rotate_duetto_cosR = cos(m_rightMoveAngle * m_calRA);  //
 
 }
 
@@ -464,6 +542,14 @@ void DecodePackage<PointT>::BeginDecodePackageData()
 				USE_EXCEPTION_TIPS(TWException::TWEC_TIPS_NOMATCH_DEVICE, "Lidar type and protocol data do not match!");
 			}
 			break;
+		case LT_Duetto:
+			if (packagePtr->m_length == 1348)
+				DecodeDuetto(packagePtr->m_szData);
+			else
+			{
+				USE_EXCEPTION_TIPS(TWException::TWEC_TIPS_NOMATCH_DEVICE, "Lidar type and protocol data do not match!");
+			}
+			break;
 		default:
 		{
 			USE_EXCEPTION_TIPS(TWException::TWEC_TIPS_INVALID_DEVICE, "Invalid device type!");
@@ -481,7 +567,8 @@ void DecodePackage<PointT>::UseDecodePointPro(int echo, double horAngle, int cha
 {
 	//distance
 	double L = hexL * m_calSimple;
-	if (L <= 0 || L > 300) return;
+	if (L <= 0) return;
+	//if (L <= 0 || L > 300) return;
 
 	double intensity = hexPulseWidth * m_calPulse;
 
@@ -514,7 +601,8 @@ void DecodePackage<PointT>::UseDecodePointTSP03_32(int echo, double horAngle, in
 {
 	//distance
 	double L = hexL * m_calSimple;
-	if (L <= 0 || L > 300) return;
+	if (L <= 0) return;
+	//if (L <= 0 || L > 300) return;
 
 	double intensity = hexPulseWidth * m_calPulse;
 
@@ -549,7 +637,8 @@ void DecodePackage<PointT>::UseDecodePointScope(int echo, int sepIndex, int face
 
 	//distance
 	double L = hexL * m_calSimple;
-	if (L <= 0 || L > 300) return;
+	if (L <= 0) return;
+	//if (L <= 0 || L > 300) return;
 
 	double intensity = hexPulseWidth * m_calPulse;
 
@@ -588,7 +677,8 @@ void DecodePackage<PointT>::UseDecodePointScope_192(int echo, int sepIndex, int 
 
 	//distance
 	double L = hexL * m_calSimple;
-	if (L <= 0 || L > 300) return;
+	if (L <= 0) return;
+	//if (L <= 0 || L > 300) return;
 
 	double intensity = hexPulseWidth * m_calPulse;
 
@@ -599,6 +689,62 @@ void DecodePackage<PointT>::UseDecodePointScope_192(int echo, int sepIndex, int 
 	double x = x_tmp * m_rotate_scope_cos - y_tmp * m_rotate_scope_sin;
 	double y = x_tmp * m_rotate_scope_sin + y_tmp * m_rotate_scope_cos;
 	double z = z_tmp;
+
+	PointT basic_point;
+	setX(basic_point, static_cast<float>(x));
+	setY(basic_point, static_cast<float>(y));
+	setZ(basic_point, static_cast<float>(z));
+	setIntensity(basic_point, static_cast<float>(intensity));
+	setChannel(basic_point, channel);
+	setAngle(basic_point, static_cast<float>(horAngle));
+	setEcho(basic_point, echo);
+	//setT_sec(basic_point, t_sec);
+	//setT_usec(basic_point, t_usec);
+
+	m_pointCloutPtr->PushBack(basic_point);
+}
+
+
+template <typename PointT>
+void DecodePackage<PointT>::UseDecodePointDuetto(int echo, int leftOrRight, int faceIndex, double horAngle, int seq, int channel, float hexL, float hexPulseWidth)
+{
+	double cos_vA_RA, sin_vA_RA;
+	double m_rotate_duetto_sin, m_rotate_duetto_cos;
+	
+	if (0 == leftOrRight) //right
+	{
+		cos_vA_RA = m_verticalChannelAngle_Duetto16R_cos_vA_RA[seq];
+		sin_vA_RA = m_verticalChannelAngle_Duetto16R_sin_vA_RA[seq];
+
+		m_rotate_duetto_sin = m_rotate_duetto_sinR;
+		m_rotate_duetto_cos = m_rotate_duetto_cosR;
+	}
+	else //left
+	{
+		cos_vA_RA = m_verticalChannelAngle_Duetto16L_cos_vA_RA[seq];
+		sin_vA_RA = m_verticalChannelAngle_Duetto16L_sin_vA_RA[seq];
+		m_rotate_duetto_sin = m_rotate_duetto_sinL;
+		m_rotate_duetto_cos = m_rotate_duetto_cosL;
+	}
+
+
+	//distance1
+	double L = hexL * 0.005;
+	if (L <= 0) return;
+	//if (L <= 0 || L > 300) return;
+
+	//pulse/intensity
+	double intensity = hexPulseWidth * 0.125;
+
+	//xyz
+	double x_tmp = L * (cos_vA_RA * x_cal_1 + sin_vA_RA * x_cal_2);
+	double y_tmp = L * (cos_vA_RA * y_cal_1 + sin_vA_RA * y_cal_2);
+	double z_tmp = -L * (cos_vA_RA * z_cal_1 + sin_vA_RA * z_cal_2);
+
+	double x = x_tmp * m_rotate_duetto_cos - y_tmp * m_rotate_duetto_sin;
+	double y = x_tmp * m_rotate_duetto_sin + y_tmp * m_rotate_duetto_cos;
+	double z = z_tmp;
+
 
 	PointT basic_point;
 	setX(basic_point, static_cast<float>(x));
@@ -984,3 +1130,110 @@ void DecodePackage<PointT>::DecodeScope192(char* udpData)
 		}
 	}
 }
+
+template <typename PointT>
+void DecodePackage<PointT>::DecodeDuetto(char* udpData)
+{
+	for (int blocks_num = 0; blocks_num<8; blocks_num++)
+	{
+		int offset_block = blocks_num * 164;
+
+		//L/R
+		unsigned char  hexLOrR = udpData[35 + offset_block];
+		hexLOrR = hexLOrR << 7;
+		unsigned short leftOrRight = hexLOrR >> 7;
+		
+		//face id
+		unsigned char  hexFaceID = udpData[35 + offset_block];
+		hexFaceID = hexFaceID << 5;
+		unsigned short faceIndex = hexFaceID >> 6;
+
+		for (int seq = 0; seq<16; seq++)
+		{
+
+			//2Byte 36-37(index) horizontal angle:hexHorAngle*0.01
+			double hexHorAngle = TwoHextoInt(udpData[36 + offset_block + seq * 10], udpData[37 + offset_block + seq * 10]);
+			double horAngle = hexHorAngle * 0.01;
+
+
+			if (horAngle < m_startAngle && 1 == faceIndex && m_pointCloutPtr->Size() != 0)
+			{
+				m_pointCloutPtr->height = 1;
+				m_pointCloutPtr->width = m_pointCloutPtr->Size();
+
+				std::lock_guard<std::mutex> lock(*m_mutex);
+				if (m_funcPointCloud) m_funcPointCloud(m_pointCloutPtr);
+
+				//create
+				m_pointCloutPtr = std::make_shared<TWPointCloud<PointT>>();
+				m_pointCloutPtr->Reserve(360);
+				continue;
+			}
+			if (horAngle <m_startAngle || horAngle > m_endAngle) continue;
+
+
+			//left
+			if (1 == leftOrRight)
+			{
+				double hA = 0.5 * (horAngle - m_leftMoveAngle) * m_calRA;
+
+				double hA_sin = sin(hA);
+				double hA_cos = cos(hA);
+
+				x_cal_1 = 2.0 * m_skewing_cos_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos*hA_cos - 1;
+				x_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos;
+
+				y_cal_1 = 2.0 * m_skewing_cos_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_sin * hA_cos;
+				y_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_sin;
+
+				z_cal_1 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos;
+				z_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_sin_duetto[faceIndex] - 1;
+			}
+			else
+			//right
+			{
+				double hA = 0.5 * (horAngle - m_rightMoveAngle) * m_calRA;
+
+				double hA_sin = sin(hA);
+				double hA_cos = cos(hA);
+
+				x_cal_1 = 2.0 * m_skewing_cos_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos*hA_cos - 1;
+				x_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos;
+
+				y_cal_1 = 2.0 * m_skewing_cos_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_sin * hA_cos;
+				y_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_sin;
+
+				z_cal_1 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos;
+				z_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_sin_duetto[faceIndex] - 1;
+			}
+
+
+			/*
+			//2Byte 38-39(index) vertical angle	(hexVerAngle-9000)*0.01
+			double hexVerAngle = TwoHextoInt(udpData[38 + offset_block + seq * 10 + 0], udpData[39 + offset_block + seq * 10 + 1]);
+			double verAngle = hexVerAngle * 0.01;
+			*/
+
+			//2Byte 40-41(index) echo = 1 distance:hexL1*0.005
+			float hexL1 = static_cast<float>(TwoHextoInt(udpData[40 + offset_block + seq * 10], udpData[41 + offset_block + seq * 10]));
+
+			//1Byte 42(index) echo = 1 pulse:hexIntensity*0.125
+			unsigned char hexChar1 = udpData[42 + offset_block + seq * 10];
+			unsigned short hexPulse1 = hexChar1;
+
+			//2Byte 43-44(index) echo = 2 distance:hexL2*0.005
+			float hexL2 = static_cast<float>(TwoHextoInt(udpData[43 + offset_block + seq * 10], udpData[44 + offset_block + seq * 10]));
+
+			//1Byte 45(index) echo = 2 pulse:hexIntensity*0.125
+			unsigned char hexChar2 = udpData[45 + offset_block + seq * 10];
+			unsigned short hexPulse2 = hexChar2;
+
+			//channel
+			int channel = 48 * leftOrRight + (abs((int)faceIndex - 2) * 16 + (16 - seq));
+
+			UseDecodePointDuetto(1, leftOrRight, faceIndex, horAngle, seq, channel, hexL1, hexPulse1);
+			UseDecodePointDuetto(2, leftOrRight, faceIndex, horAngle, seq, channel, hexL2, hexPulse2);
+		}
+	}
+}
+

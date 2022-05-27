@@ -78,6 +78,7 @@ public:
 	*/
 	void SetCorrectedAngleToTSP0332(float angle1, float angle2);
 	void SetCorrectedAngleToScope192(float angle1, float angle2, float angle3);
+	void SetMoveAngleToDuetto(float leftAngle, float rightAngle);
 	/*
 	*Register the point cloud callback function.
 	*/
@@ -103,6 +104,7 @@ private:
 	std::shared_ptr<DecodePackage<PointT>> m_decodePackagePtr;
 	std::mutex m_mutexE;
 };
+
 
 template <typename PointT>
 TanwayLidarSDK<PointT>::TanwayLidarSDK(std::string lidarIP, std::string localIP, int localPort, TWLidarType lidarType, std::shared_ptr<DecodePackage<PointT>> decodePackagePtr)
@@ -152,6 +154,12 @@ void TanwayLidarSDK<PointT>::PausePcap(bool pause)
 {
 	if (m_pcapReaderPtr)
 		m_pcapReaderPtr->PausePcap(pause);
+}
+
+template <typename PointT>
+void TanwayLidarSDK<PointT>::SetMoveAngleToDuetto(float leftAngle, float rightAngle)
+{
+	m_decodePackagePtr->SetMoveAngleToDuetto(leftAngle, rightAngle);
 }
 
 template <typename PointT>
