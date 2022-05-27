@@ -71,4 +71,4 @@ git clone https://github.com/TanwayLab/TanwayLidarSDK.git
 | v1.0.2 | 2022年03月15日 | 增加对TSP03-32、Scope-192雷达的支持                          |
 | v1.0.3 | 2022年03月22日 | 修正Scope-192水平角度解算                                    |
 | v1.0.4 | 2022年03月26日 | 修正Scope-192水平角度解算水平偏移的bug;<br />修改默认组修正角度值； |
-
+| v1.0.5 | 2022年04月20日 | 增加Duetto设备的支持；                                       |

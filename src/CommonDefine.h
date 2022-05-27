@@ -55,6 +55,7 @@ enum TWLidarType
 	LT_Scope,			//3
 	LT_TSP0332,			//4
 	LT_Scope192,		//5
+	LT_Duetto,			//6
 };
 
 struct TWUDPPackage
