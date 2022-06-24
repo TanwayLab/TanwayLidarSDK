@@ -99,7 +99,7 @@ struct __declspec(align(16)) TWPointCloud
 struct __attribute__((aligned(16))) TWPointCloud
 #endif
 {
-	typedef std::vector<PointT> TWPointData;
+	typedef std::vector<PointT> PointData;
 	typedef std::shared_ptr<TWPointCloud<PointT>> Ptr;
 
 	void PushBack(PointT point);
@@ -111,7 +111,7 @@ struct __attribute__((aligned(16))) TWPointCloud
 	uint64_t stamp = 0;
 	std::string frame_id = "TanwayTP";
 
-	TWPointData m_pointData;
+	PointData m_pointData;
 };
 
 template <typename PointT>

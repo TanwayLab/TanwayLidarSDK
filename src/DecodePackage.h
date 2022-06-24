@@ -58,12 +58,30 @@ MemberCheck(color)
 MemberCheck(t_sec)
 MemberCheck(t_usec)
 
-#define PointT_HsaMember(C, member) has_member_##member<C>::value
+#define PointT_HasMember(C, member) has_member_##member<C>::value
 
 
 template <typename PointT>
 class DecodePackage
 {
+protected:
+	typedef struct _ori_point_data
+	{
+		double x;
+		double y;
+		double z;
+
+		double distance = 0;
+		int  channel = 0;
+		double angle = 0;
+		double pulse = 0;
+		int echo = 1;
+		int mirror = 0;
+		int left_right = 0;
+		unsigned int t_sec = 0;
+		unsigned int t_usec = 0;
+	}TWPointData;
+
 public:
 	DecodePackage(std::shared_ptr<PackageCache> packageCachePtr, TWLidarType lidarType, std::mutex* mutex);
 	DecodePackage();
@@ -89,8 +107,8 @@ private:
 	void DecodeTensorLite(char* udpData, unsigned int t_sec, unsigned int t_usec);
 	void DecodeTensorPro(char* udpData, unsigned int t_sec, unsigned int t_usec);
 	void DecodeTensorPro_echo2(char* udpData, unsigned int t_sec, unsigned int t_usec);
-	void DecodeScope(char* udpData);
 	void DecodeTensorPro0332(char* udpData, unsigned int t_sec, unsigned int t_usec);
+	void DecodeScope(char* udpData);
 	void DecodeScope192(char* udpData);
 	void DecodeDuetto(char* udpData);
 
@@ -98,11 +116,14 @@ private:
 
 
 protected:
-	virtual void UseDecodePointPro(int echo, double horAngle, int channel, float hexL, float hexPulseWidth, int offset, char* data, unsigned int t_sec, unsigned int t_usec);
-	virtual void UseDecodePointTSP03_32(int echo, double horAngle, int channel, float hexL, float hexPulseWidth, int offset, char* data, unsigned int t_sec, unsigned int t_usec);
-	virtual void UseDecodePointScope(int echo, int sepIndex, int faceIndex, double horAngle, int channel, float hexL, float hexPulseWidth);
-	virtual void UseDecodePointScope_192(int echo, int sepIndex, int faceIndex, double horAngle, int channel, float hexL, float hexPulseWidth);
-	virtual void UseDecodePointDuetto(int echo, int leftOrRight, int faceIndex, double horAngle, int seq, int channel, float hexL, float hexPulseWidth);
+	virtual void UseDecodeTensorPro(char* udpData, std::vector<TWPointData>& pointCloud, unsigned int t_sec, unsigned int t_usec);
+	virtual void UseDecodeTensorPro_echo2(char* udpData, std::vector<TWPointData>& pointCloud, unsigned int t_sec, unsigned int t_usec);
+	virtual void UseDecodeTensorPro0332(char* udpData, std::vector<TWPointData>& pointCloud, unsigned int t_sec, unsigned int t_usec);
+	virtual void UseDecodeScope(char* udpData, std::vector<TWPointData>& pointCloud);
+	virtual void UseDecodeScope192(char* udpData, std::vector<TWPointData>& pointCloud);
+	virtual void UseDecodeDuetto(char* udpData, std::vector<TWPointData>& pointCloud);
+
+
 	virtual void ProcessPointCloud(){};
 
 protected:
@@ -119,33 +140,27 @@ protected:
 	double m_calPulse = 0.004577 / 0.15;
 	double m_calSimple = 500 * 2.997924 / 10.f / 16384.f / 2;
 
-	//TSP03-32、Scope162、Duetto temporary variable
-	double x_cal_1 = 0;
-	double x_cal_2 = 0;
-	double y_cal_1 = 0;
-	double y_cal_2 = 0;
-	double z_cal_1 = 0;
-	double z_cal_2 = 0;
-
 	//Tensor
-	double m_verticalChannelAngle16[16] =
+	double m_verticalChannelsAngle_Tensor16[16] =
 	{
 		-5.274283f, -4.574258f,	-3.872861f, -3.1703f, -2.466783f, -1.762521f, -1.057726f, -0.352611f,
 		0.352611f, 1.057726f, 1.762521f, 2.466783f, 3.1703f, 3.872861f, 4.574258f, 5.274283f
 	};
+
+	//TSP03 32
 	double m_verticalChannelAngle16_cos_vA_RA[16] = { 0.0 };
 	double m_verticalChannelAngle16_sin_vA_RA[16] = { 0.0 };
 	double m_skewing_sin_tsp[2] = { 0.0 };
 	double m_skewing_cos_tsp[2] = { 0.0 };
 
 	//Scope
-	double m_verticalChannelAngle64[64] =
+	double m_verticalChannelAngle_Scope64[64] =
 	{
 		-14.64f, -14.17f, -13.69f, -13.22f, -12.75f, -12.28f, -11.81f, -11.34f, -10.87f, -10.40f, -9.93f, -9.47f, -9.00f, -8.54f, -8.07f, -7.61f, -7.14f, -6.68f, -6.22f, -5.76f, -5.29f, -4.83f, -4.37f, -3.91f, -3.45f, -2.99f, -2.53f, -2.07f, -1.61f, -1.15f, -0.69f, -0.23f,
 		0.23f, 0.69f, 1.15f, 1.61f, 2.07f, 2.53f, 2.99f, 3.45f, 3.91f, 4.37f, 4.83f, 5.29f, 5.76f, 6.22f, 6.68f, 7.14f, 7.61f, 8.07f, 8.54f, 9.00f, 9.47f, 9.93f, 10.40f, 10.87f, 11.34f, 11.81f, 12.28f, 12.75f, 13.22f, 13.69f, 14.17f, 14.64f
 	};
-	double m_verticalChannelAngle64_cos_vA_RA[64] = { 0.0 };
-	double m_verticalChannelAngle64_sin_vA_RA[64] = { 0.0 };
+	double m_verticalChannelAngle_Scope64_cos_vA_RA[64] = { 0.0 };
+	double m_verticalChannelAngle_Scope64_sin_vA_RA[64] = { 0.0 };
 	double m_skewing_sin_scope[3] = { 0.0 };
 	double m_skewing_cos_scope[3] = { 0.0 };
 	double m_rotate_scope_sin = sin(-10.0 * m_calRA);
@@ -189,8 +204,9 @@ private:
 	std::function<void(const TWException&)> m_funcException = NULL;
 
 public:
-	typename TWPointCloud<PointT>::Ptr m_pointCloutPtr;
+	typename TWPointCloud<PointT>::Ptr m_pointCloudPtr;
 };
+
 
 template <typename PointT>
 void DecodePackage<PointT>::RegPointCloudCallback(const std::function<void(typename TWPointCloud<PointT>::Ptr)>& callback)
@@ -263,113 +279,113 @@ int DecodePackage<PointT>::FourHexToInt(unsigned char high, unsigned char highmi
 }
 
 template <typename PointT>
-inline typename std::enable_if<!PointT_HsaMember(PointT, x)>::type setX(PointT& point, const float& value)
+inline typename std::enable_if<!PointT_HasMember(PointT, x)>::type setX(PointT& point, const float& value)
 {
 }
 
 template <typename PointT>
-inline typename std::enable_if<PointT_HsaMember(PointT, x)>::type setX(PointT& point, const float& value)
+inline typename std::enable_if<PointT_HasMember(PointT, x)>::type setX(PointT& point, const float& value)
 {
 	point.x = value;
 }
 
 
 template <typename PointT>
-inline typename std::enable_if<!PointT_HsaMember(PointT, y)>::type setY(PointT& point, const float& value)
+inline typename std::enable_if<!PointT_HasMember(PointT, y)>::type setY(PointT& point, const float& value)
 {
 }
 
 template <typename PointT>
-inline typename std::enable_if<PointT_HsaMember(PointT, y)>::type setY(PointT& point, const float& value)
+inline typename std::enable_if<PointT_HasMember(PointT, y)>::type setY(PointT& point, const float& value)
 {
 	point.y = value;
 }
 
 
 template <typename PointT>
-inline typename std::enable_if<!PointT_HsaMember(PointT, z)>::type setZ(PointT& point, const float& value)
+inline typename std::enable_if<!PointT_HasMember(PointT, z)>::type setZ(PointT& point, const float& value)
 {
 }
 
 template <typename PointT>
-inline typename std::enable_if<PointT_HsaMember(PointT, z)>::type setZ(PointT& point, const float& value)
+inline typename std::enable_if<PointT_HasMember(PointT, z)>::type setZ(PointT& point, const float& value)
 {
 	point.z = value;
 }
 
 template <typename PointT>
-inline typename std::enable_if<!PointT_HsaMember(PointT, intensity)>::type setIntensity(PointT& point, const float& value)
+inline typename std::enable_if<!PointT_HasMember(PointT, intensity)>::type setIntensity(PointT& point, const float& value)
 {
 }
 
 template <typename PointT>
-inline typename std::enable_if<PointT_HsaMember(PointT, intensity)>::type setIntensity(PointT& point, const float& value)
+inline typename std::enable_if<PointT_HasMember(PointT, intensity)>::type setIntensity(PointT& point, const float& value)
 {
 	point.intensity = value;
 }
 
 template <typename PointT>
-inline typename std::enable_if<!PointT_HsaMember(PointT, channel)>::type setChannel(PointT& point, const int& value)
+inline typename std::enable_if<!PointT_HasMember(PointT, channel)>::type setChannel(PointT& point, const int& value)
 {
 }
 
 template <typename PointT>
-inline typename std::enable_if<PointT_HsaMember(PointT, channel)>::type setChannel(PointT& point, const int& value)
+inline typename std::enable_if<PointT_HasMember(PointT, channel)>::type setChannel(PointT& point, const int& value)
 {
 	point.channel = value;
 }
 
 template <typename PointT>
-inline typename std::enable_if<!PointT_HsaMember(PointT, angle)>::type setAngle(PointT& point, const float& value)
+inline typename std::enable_if<!PointT_HasMember(PointT, angle)>::type setAngle(PointT& point, const float& value)
 {
 }
 
 template <typename PointT>
-inline typename std::enable_if<PointT_HsaMember(PointT, angle)>::type setAngle(PointT& point, const float& value)
+inline typename std::enable_if<PointT_HasMember(PointT, angle)>::type setAngle(PointT& point, const float& value)
 {
 	point.angle = value;
 }
 
 template <typename PointT>
-inline typename std::enable_if<!PointT_HsaMember(PointT, echo)>::type setEcho(PointT& point, const int& value)
+inline typename std::enable_if<!PointT_HasMember(PointT, echo)>::type setEcho(PointT& point, const int& value)
 {
 }
 
 template <typename PointT>
-inline typename std::enable_if<PointT_HsaMember(PointT, echo)>::type setEcho(PointT& point, const int& value)
+inline typename std::enable_if<PointT_HasMember(PointT, echo)>::type setEcho(PointT& point, const int& value)
 {
 	point.echo = value;
 }
 
 template <typename PointT>
-inline typename std::enable_if<!PointT_HsaMember(PointT, color)>::type setColor(PointT& point, const float& value)
+inline typename std::enable_if<!PointT_HasMember(PointT, color)>::type setColor(PointT& point, const float& value)
 {
 }
 
 template <typename PointT>
-inline typename std::enable_if<PointT_HsaMember(PointT, color)>::type setColor(PointT& point, const float& value)
+inline typename std::enable_if<PointT_HasMember(PointT, color)>::type setColor(PointT& point, const float& value)
 {
 	point.color = value;
 }
 
 template <typename PointT>
-inline typename std::enable_if<!PointT_HsaMember(PointT, t_sec)>::type setT_sec(PointT& point, const unsigned int& value)
+inline typename std::enable_if<!PointT_HasMember(PointT, t_sec)>::type setT_sec(PointT& point, const unsigned int& value)
 {
 }
 
 template <typename PointT>
-inline typename std::enable_if<PointT_HsaMember(PointT, t_sec)>::type setT_sec(PointT& point, const unsigned int& value)
+inline typename std::enable_if<PointT_HasMember(PointT, t_sec)>::type setT_sec(PointT& point, const unsigned int& value)
 {
 	point.t_sec = value;
 }
 
 template <typename PointT>
-inline typename std::enable_if<!PointT_HsaMember(PointT, t_usec)>::type setT_usec(PointT& point, const unsigned int& value)
+inline typename std::enable_if<!PointT_HasMember(PointT, t_usec)>::type setT_usec(PointT& point, const unsigned int& value)
 {
 }
 
 template <typename PointT>
-inline typename std::enable_if<PointT_HsaMember(PointT, t_usec)>::type setT_usec(PointT& point, const unsigned int& value)
+inline typename std::enable_if<PointT_HasMember(PointT, t_usec)>::type setT_usec(PointT& point, const unsigned int& value)
 {
 	point.t_usec = value;
 }
@@ -379,7 +395,7 @@ void DecodePackage<PointT>::Start()
 {
 	run_decode.store(true);
 	run_exit.store(false);
-	m_pointCloutPtr = std::make_shared<TWPointCloud<PointT>>();
+	m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
 	std::thread(std::bind(&DecodePackage::BeginDecodePackageData, this)).detach();
 }
 
@@ -415,9 +431,9 @@ void DecodePackage<PointT>::InitBasicVariables()
 
 	for (int i = 0; i < 64; i++)
 	{
-		double vA = m_verticalChannelAngle64[i];
-		m_verticalChannelAngle64_cos_vA_RA[i] = cos(vA * m_calRA);
-		m_verticalChannelAngle64_sin_vA_RA[i] = sin(vA * m_calRA);
+		double vA = m_verticalChannelAngle_Scope64[i];
+		m_verticalChannelAngle_Scope64_cos_vA_RA[i] = cos(vA * m_calRA);
+		m_verticalChannelAngle_Scope64_sin_vA_RA[i] = sin(vA * m_calRA);
 	}
 
 	//TSP03-32
@@ -429,7 +445,7 @@ void DecodePackage<PointT>::InitBasicVariables()
 
 	for (int i = 0; i < 16; i++)
 	{
-		double vA = m_verticalChannelAngle16[i];
+		double vA = m_verticalChannelsAngle_Tensor16[i];
 		m_verticalChannelAngle16_cos_vA_RA[i] = cos(vA * m_calRA);
 		m_verticalChannelAngle16_sin_vA_RA[i] = sin(vA * m_calRA);
 	}
@@ -563,201 +579,589 @@ void DecodePackage<PointT>::BeginDecodePackageData()
 }
 
 template <typename PointT>
-void DecodePackage<PointT>::UseDecodePointPro(int echo, double horAngle, int channel, float hexL, float hexPulseWidth, int offset, char* data, unsigned int t_sec, unsigned int t_usec)
+void DecodePackage<PointT>::UseDecodeTensorPro(char* udpData, std::vector<TWPointData>& pointCloud, unsigned int t_sec, unsigned int t_usec)
 {
-	//distance
-	double L = hexL * m_calSimple;
-	if (L <= 0) return;
-	//if (L <= 0 || L > 300) return;
+	for (int blocks_num = 0; blocks_num < 20; blocks_num++)
+	{
+		int offset = blocks_num * 72;
 
-	double intensity = hexPulseWidth * m_calPulse;
+		//水平角度
+		unsigned int HextoAngle = FourHexToInt(udpData[offset + 64], udpData[offset + 65], udpData[offset + 66], udpData[offset + 67]);
+		double horizontalAngle = HextoAngle * 0.00001;
 
-	double cos_hA = cos(horAngle * m_calRA);
-	double sin_hA = sin(horAngle * m_calRA);
+		//取出镜面值
+		unsigned char  hexMirror = udpData[offset + 68];
+		hexMirror = hexMirror >> 7;
+		unsigned short mirror = hexMirror;
 
-	double vA = m_verticalChannelAngle16[channel-1];
-	double cos_vA_RA = cos(vA * m_calRA);
-	double x = L * cos_vA_RA * cos_hA;
-	double y = L * cos_vA_RA * sin_hA;
-	double z = L * sin(vA * m_calRA);
+		//time of point
+		unsigned int cur_sec = t_sec;
+		unsigned int cur_usec = t_usec;
+		if (t_usec < blocks_num * 29.4) //The time interval between the two columns is 29.4 subtle
+		{
+			cur_sec = cur_sec - 1;
+			cur_usec = (unsigned int)(t_usec + 1000000 - blocks_num * 29.4);
+		}
+		else
+		{
+			cur_usec = (unsigned int)(t_usec - blocks_num * 29.4);
+		}
 
-	PointT basic_point;
-	setX(basic_point, static_cast<float>(x));
-	setY(basic_point, static_cast<float>(y));
-	setZ(basic_point, static_cast<float>(z));
-	setIntensity(basic_point, static_cast<float>(intensity));
-	setChannel(basic_point, channel);
-	setAngle(basic_point, static_cast<float>(horAngle));
-	setEcho(basic_point, echo);
-	setT_sec(basic_point, t_sec);
-	setT_usec(basic_point, t_usec);
+		int seq = 0;
+		while (seq < 16)
+		{
+			unsigned short  hexL = TwoHextoInt(udpData[offset + seq * 4 + 0], udpData[offset + seq * 4 + 1]);
+			unsigned short  hexPulse = TwoHextoInt(udpData[offset + seq * 4 + 2], udpData[offset + seq * 4 + 3]);
 
-	m_pointCloutPtr->PushBack(basic_point);
+			double L = hexL * m_calSimple;
+			double pulse = hexPulse * m_calPulse; //脉宽
 
+			//计算
+			double cos_hA = cos(horizontalAngle * m_calRA);
+			double sin_hA = sin(horizontalAngle * m_calRA);
+			double vA = m_verticalChannelsAngle_Tensor16[seq];
+			double cos_vA_RA = cos(vA * m_calRA);
+
+
+			TWPointData basic_point;
+			basic_point.x = L * cos_vA_RA * cos_hA;
+			basic_point.y = L * cos_vA_RA * sin_hA;
+			basic_point.z = L * sin(vA * m_calRA);
+
+			basic_point.distance = L;
+			basic_point.channel = seq + 1; 
+			basic_point.angle = horizontalAngle;
+			basic_point.pulse = pulse;
+			basic_point.mirror = mirror;
+			basic_point.echo = 1;
+			basic_point.t_sec = cur_sec;
+			basic_point.t_usec = cur_usec;
+
+			pointCloud.push_back(std::move(basic_point));
+
+			seq++;
+		}
+	}
 }
 
 template <typename PointT>
-void DecodePackage<PointT>::UseDecodePointTSP03_32(int echo, double horAngle, int channel, float hexL, float hexPulseWidth, int offset, char* data, unsigned int t_sec, unsigned int t_usec)
+void DecodePackage<PointT>::UseDecodeTensorPro_echo2(char* udpData, std::vector<TWPointData>& pointCloud, unsigned int t_sec, unsigned int t_usec)
 {
-	//distance
-	double L = hexL * m_calSimple;
-	if (L <= 0) return;
-	//if (L <= 0 || L > 300) return;
+	for (int blocks_num = 0; blocks_num < 20; blocks_num++)
+	{
+		int offset = blocks_num * 72;
 
-	double intensity = hexPulseWidth * m_calPulse;
+		//水平角度
+		unsigned int HextoAngle = FourHexToInt(udpData[offset + 64], udpData[offset + 65], udpData[offset + 66], udpData[offset + 67]);
+		double horizontalAngle = HextoAngle * 0.00001;
 
-	double x = L * (m_verticalChannelAngle16_cos_vA_RA[channel - 1] * x_cal_1 + m_verticalChannelAngle16_sin_vA_RA[channel - 1] * x_cal_2);
-	double y = L * (m_verticalChannelAngle16_cos_vA_RA[channel - 1] * y_cal_1 + m_verticalChannelAngle16_sin_vA_RA[channel - 1] * y_cal_2);
-	double z = -L * (m_verticalChannelAngle16_cos_vA_RA[channel - 1] * z_cal_1 + m_verticalChannelAngle16_sin_vA_RA[channel - 1] * z_cal_2);
+		//取出镜面值
+		unsigned char  hexMirror = udpData[offset + 68];
+		hexMirror = hexMirror >> 7;
+		unsigned short mirror = hexMirror;
 
-	PointT basic_point;
-	setX(basic_point, static_cast<float>(x));
-	setY(basic_point, static_cast<float>(y));
-	setZ(basic_point, static_cast<float>(z));
-	setIntensity(basic_point, static_cast<float>(intensity));
-	setChannel(basic_point, channel);
-	setAngle(basic_point, static_cast<float>(horAngle));
-	setEcho(basic_point, echo);
-	setT_sec(basic_point, t_sec);
-	setT_usec(basic_point, t_usec);
+		//time of point
+		unsigned int cur_sec = t_sec;
+		unsigned int cur_usec = t_usec;
+		if (t_usec < (int)(blocks_num/2) * 29.4) //The time interval between the two columns is 29.4 subtle
+		{
+			cur_sec = cur_sec - 1;
+			cur_usec = (unsigned int)(t_usec + 1000000 - blocks_num * 29.4);
+		}
+		else
+		{
+			cur_usec = (unsigned int)(t_usec - blocks_num * 29.4);
+		}
 
-	m_pointCloutPtr->PushBack(basic_point);
+		int seq = 0;
+		while (seq < 16)
+		{
+			unsigned short  hexL = TwoHextoInt(udpData[offset + seq * 4 + 0], udpData[offset + seq * 4 + 1]);
+			unsigned short  hexPulse = TwoHextoInt(udpData[offset + seq * 4 + 2], udpData[offset + seq * 4 + 3]);
+
+			double L = hexL * m_calSimple;
+			double pulse = hexPulse * m_calPulse; //脉宽
+
+			//计算
+			double cos_hA = cos(horizontalAngle * m_calRA);
+			double sin_hA = sin(horizontalAngle * m_calRA);
+			double vA = m_verticalChannelsAngle_Tensor16[seq];
+			double cos_vA_RA = cos(vA * m_calRA);
+
+
+			TWPointData basic_point;
+			basic_point.x = L * cos_vA_RA * cos_hA;
+			basic_point.y = L * cos_vA_RA * sin_hA;
+			basic_point.z = L * sin(vA * m_calRA);
+
+			basic_point.distance = L;
+			basic_point.channel = seq + 1; 
+			basic_point.angle = horizontalAngle;
+			basic_point.pulse = pulse;
+			basic_point.mirror = mirror;
+			basic_point.echo = blocks_num % 2 + 1;
+
+			pointCloud.push_back(std::move(basic_point));
+
+			seq++;
+		}
+	}
 }
 
 template <typename PointT>
-void DecodePackage<PointT>::UseDecodePointScope(int echo, int sepIndex, int faceIndex, double horAngle, int channel, float hexL, float hexPulseWidth)
+void DecodePackage<PointT>::UseDecodeTensorPro0332(char* udpData, std::vector<TWPointData>& pointCloud, unsigned int t_sec, unsigned int t_usec)
 {
-	if (sepIndex == 0)
-		m_firstSeparateAngle = horAngle;
-	else
+	//处理接收到的数据
+	//解析UDP包
+	for (int blocks_num = 0; blocks_num < 20; blocks_num++)
 	{
-		if (m_firstSeparateAngle >= 0)
-			horAngle = m_firstSeparateAngle;
+		int offset = blocks_num * 72;
+
+		//水平角度
+		unsigned int HextoAngle = FourHexToInt(udpData[offset + 64], udpData[offset + 65], udpData[offset + 66], udpData[offset + 67]);
+		double horizontalAngle = HextoAngle * 0.00001;
+
+		//取出镜面值
+		unsigned char  hexMirror = udpData[offset + 68];
+		hexMirror = hexMirror >> 7;
+		unsigned short mirror = hexMirror;
+
+
+		//计算不同镜面的偏移值
+		double hA = 0.5 * horizontalAngle * m_calRA;
+		double hA_sin = sin(hA);
+		double hA_cos = cos(hA);
+
+		unsigned short faceIndex = mirror;
+		double x_cal_1 = 2.0 * m_skewing_cos_tsp[faceIndex] * m_skewing_cos_tsp[faceIndex] * hA_cos*hA_cos - 1;
+		double x_cal_2 = 2.0 * m_skewing_sin_tsp[faceIndex] * m_skewing_cos_tsp[faceIndex] * hA_cos;
+
+		double y_cal_1 = m_skewing_cos_tsp[faceIndex] * m_skewing_cos_tsp[faceIndex] * 2.0 * hA_sin * hA_cos;
+		double y_cal_2 = 2.0 * m_skewing_sin_tsp[faceIndex] * m_skewing_cos_tsp[faceIndex] * hA_sin;
+
+		double z_cal_1 = 2.0 * m_skewing_sin_tsp[faceIndex] * m_skewing_cos_tsp[faceIndex] * hA_cos;
+		double z_cal_2 = 2.0 * m_skewing_sin_tsp[faceIndex] * m_skewing_sin_tsp[faceIndex] - 1;
+
+
+		//time of point
+		unsigned int cur_sec = t_sec;
+		unsigned int cur_usec = t_usec;
+		if (t_usec < blocks_num * 29.4) //The time interval between the two columns is 29.4 subtle
+		{
+			cur_sec = cur_sec - 1;
+			cur_usec = (unsigned int)(t_usec + 1000000 - blocks_num * 29.4);
+		}
+		else
+		{
+			cur_usec = (unsigned int)(t_usec - blocks_num * 29.4);
+		}
+
+		int seq = 0;
+		while (seq < 16)
+		{
+			unsigned short  hexL = TwoHextoInt(udpData[offset + seq * 4 + 0], udpData[offset + seq * 4 + 1]);
+			unsigned short  hexPulse = TwoHextoInt(udpData[offset + seq * 4 + 2], udpData[offset + seq * 4 + 3]);
+
+			double L = hexL * m_calSimple;
+			double pulse = hexPulse * m_calPulse;
+
+			//计算
+			double cos_vA_RA = m_verticalChannelAngle16_cos_vA_RA[seq];
+			double sin_vA_RA = m_verticalChannelAngle16_sin_vA_RA[seq];
+
+			//echo1
+			{
+				TWPointData basic_point;
+				basic_point.x = L * (cos_vA_RA * x_cal_1 + sin_vA_RA * x_cal_2);
+				basic_point.y = L * (cos_vA_RA * y_cal_1 + sin_vA_RA * y_cal_2);
+				basic_point.z = -L * (cos_vA_RA * z_cal_1 + sin_vA_RA * z_cal_2);
+
+				basic_point.distance = L;
+				basic_point.channel = seq + 1; 
+				basic_point.angle = horizontalAngle;
+				basic_point.pulse = pulse;
+				basic_point.mirror = mirror;
+				basic_point.echo = 1;
+				basic_point.t_sec = cur_sec;
+				basic_point.t_usec = cur_usec;
+				pointCloud.push_back(std::move(basic_point));
+			}
+
+			seq++;
+		}
 	}
-
-	//distance
-	double L = hexL * m_calSimple;
-	if (L <= 0) return;
-	//if (L <= 0 || L > 300) return;
-
-	double intensity = hexPulseWidth * m_calPulse;
-
-	double cos_hA = cos(horAngle * m_calRA);
-	double sin_hA = sin(horAngle * m_calRA);
-
-	double vA = m_verticalChannelAngle64[channel - 1];
-	double cos_vA_RA = cos(vA * m_calRA);
-	double x = L * cos_vA_RA * cos_hA;
-	double y = L * cos_vA_RA * sin_hA;
-	double z = L * sin(vA * m_calRA);
-
-
-	PointT basic_point;
-	setX(basic_point, static_cast<float>(x));
-	setY(basic_point, static_cast<float>(y));
-	setZ(basic_point, static_cast<float>(z));
-	setIntensity(basic_point, static_cast<float>(intensity));
-	setChannel(basic_point, channel);
-	setAngle(basic_point, static_cast<float>(horAngle));
-	setEcho(basic_point, echo);
-
-	m_pointCloutPtr->PushBack(basic_point);
 }
 
 template <typename PointT>
-void DecodePackage<PointT>::UseDecodePointScope_192(int echo, int sepIndex, int faceIndex, double horAngle, int channel, float hexL, float hexPulseWidth)
+void DecodePackage<PointT>::UseDecodeScope(char* udpData, std::vector<TWPointData>& pointCloud)
 {
-	if (sepIndex == 0)
-		m_firstSeparateAngle = horAngle;
-	else
+	//处理接收到的数据
+	double firstSeparateAngle = -1.0;
+	//解析UDP包
+	for (int blocks_num = 0; blocks_num < 8; blocks_num++)
 	{
-		if (m_firstSeparateAngle >= 0)
-			horAngle = m_firstSeparateAngle;
+		int offset_block = blocks_num * 140;
+
+		//角度值 （索引：128-131）  GPS值 （索引：132-135）  预留值（索引：136-139）
+		unsigned int HextoAngle = FourHexToInt(udpData[offset_block + 136 - 8], udpData[offset_block + 136 - 7], udpData[offset_block + 136 - 6], udpData[offset_block + 136 - 5]);
+		double horizontalAngle = HextoAngle  * 0.00001;
+
+		//ABC镜面值
+		unsigned char  hexMirror = udpData[offset_block + 136];
+		hexMirror = hexMirror << 2;
+		unsigned short mirror = hexMirror >> 6;
+
+		//索引拍值
+		unsigned char  hexSepIndex = udpData[offset_block + 136];
+		unsigned short sepIndex = hexSepIndex >> 6;
+
+		//计数值
+		int calIndex = TwoHextoInt(udpData[offset_block + 138], udpData[offset_block + 139]);
+
+		//调整非第一拍的水平角度值和第一拍 一致
+		if (sepIndex == 0)
+			firstSeparateAngle = horizontalAngle;
+		else
+		{
+			if (firstSeparateAngle >= 0)
+				horizontalAngle = firstSeparateAngle;
+		}
+
+		int seq = 0;
+		while (seq < 16)
+		{
+			//单回波
+			double hexToInt1 = TwoHextoInt(udpData[offset_block + seq * 8 + 0], udpData[offset_block + seq * 8 + 1]);
+			double hexPulse1 = TwoHextoInt(udpData[offset_block + seq * 8 + 2], udpData[offset_block + seq * 8 + 3]);
+			//计算距离和脉宽值
+			double L_1 = hexToInt1 * m_calSimple;
+			double pulse_1 = hexPulse1 * m_calPulse;
+
+			//双回波
+			double hexToInt2 = TwoHextoInt(udpData[offset_block + seq * 8 + 4], udpData[offset_block + seq * 8 + 5]);
+			double hexPulse2 = TwoHextoInt(udpData[offset_block + seq * 8 + 6], udpData[offset_block + seq * 8 + 7]);
+			//计算距离和脉宽值
+			double L_2 = hexToInt2 * m_calSimple;
+			double pulse_2 = hexPulse2 * m_calPulse; 
+
+
+			//通道号
+			int channel = 65 - (16 * (blocks_num >= 4 ? blocks_num - 4 : blocks_num) + seq + 1);
+
+			//计算
+			double cos_hA = cos(horizontalAngle * m_calRA);
+			double sin_hA = sin(horizontalAngle * m_calRA);
+			double vA = m_verticalChannelAngle_Scope64[channel - 1];
+			double cos_vA_RA = cos(vA * m_calRA);
+
+
+			//echo1
+			{
+				double x = L_1 * cos_vA_RA * cos_hA;
+				double y = L_1 * cos_vA_RA * sin_hA;
+				double z = L_1 * sin(vA * m_calRA);
+
+				TWPointData basic_point;
+				basic_point.x = x;
+				basic_point.y = y;
+				basic_point.z = z;
+				basic_point.distance = L_1;
+				basic_point.channel = channel; 
+				basic_point.angle = horizontalAngle;
+				basic_point.pulse = pulse_1;
+				basic_point.echo = 1;
+				basic_point.mirror = mirror;
+				pointCloud.push_back(std::move(basic_point));
+			}
+
+			//echo2
+			{
+				double x = L_2 * cos_vA_RA * cos_hA;
+				double y = L_2 * cos_vA_RA * sin_hA;
+				double z = L_2 * sin(vA * m_calRA);
+
+				TWPointData basic_point;
+				basic_point.x = x;
+				basic_point.y = y;
+				basic_point.z = z;
+				basic_point.distance = L_1;
+				basic_point.channel = channel; 
+				basic_point.angle = horizontalAngle;
+				basic_point.pulse = pulse_1;
+				basic_point.echo = 1;
+				basic_point.mirror = mirror;
+				pointCloud.push_back(std::move(basic_point));
+			}
+			seq++;
+		}
 	}
+}
 
-	//distance
-	double L = hexL * m_calSimple;
-	if (L <= 0) return;
-	//if (L <= 0 || L > 300) return;
+template <typename PointT>
+void DecodePackage<PointT>::UseDecodeScope192(char* udpData, std::vector<TWPointData>& pointCloud)
+{
+	double horizontalAngle = 0;
+	//face id
+	unsigned short mirror = 0;
+	double x_cal_1 = 0.0;
+	double x_cal_2 = 0.0;
+	double y_cal_1 = 0.0;
+	double y_cal_2 = 0.0;
+	double z_cal_1 = 0.0;
+	double z_cal_2 = 0.0;
 
-	double intensity = hexPulseWidth * m_calPulse;
+	for (int blocks_num = 0; blocks_num < 8; blocks_num++)
+	{
+		int offset = blocks_num * 140;
+		if (0 == blocks_num || 4 == blocks_num)
+		{
+			//horizontal angle index: 128-131
+			int HextoAngle = FourHexToInt(udpData[offset + 128], udpData[offset + 129], udpData[offset + 130], udpData[offset + 131]);
+			horizontalAngle = HextoAngle  * 0.00001;
 
-	double x_tmp = L * (m_verticalChannelAngle64_cos_vA_RA[channel - 1] * x_cal_1 + m_verticalChannelAngle64_sin_vA_RA[channel - 1] * x_cal_2);
-	double y_tmp = L * (m_verticalChannelAngle64_cos_vA_RA[channel - 1] * y_cal_1 + m_verticalChannelAngle64_sin_vA_RA[channel - 1] * y_cal_2);
-	double z_tmp = -L * (m_verticalChannelAngle64_cos_vA_RA[channel - 1] * z_cal_1 + m_verticalChannelAngle64_sin_vA_RA[channel - 1] * z_cal_2);
+			unsigned char  hexMirror = udpData[offset + 136];
+			hexMirror = hexMirror << 2;
+			mirror = hexMirror >> 6;
 
-	double x = x_tmp * m_rotate_scope_cos - y_tmp * m_rotate_scope_sin;
-	double y = x_tmp * m_rotate_scope_sin + y_tmp * m_rotate_scope_cos;
-	double z = z_tmp;
+			double hA = 0.5 * (horizontalAngle + 10.0) * m_calRA;
+			double hA_sin = sin(hA);
+			double hA_cos = cos(hA);
 
-	PointT basic_point;
-	setX(basic_point, static_cast<float>(x));
-	setY(basic_point, static_cast<float>(y));
-	setZ(basic_point, static_cast<float>(z));
-	setIntensity(basic_point, static_cast<float>(intensity));
-	setChannel(basic_point, channel);
-	setAngle(basic_point, static_cast<float>(horAngle));
-	setEcho(basic_point, echo);
-	//setT_sec(basic_point, t_sec);
-	//setT_usec(basic_point, t_usec);
+			x_cal_1 = 2.0 * m_skewing_cos_scope[mirror] * m_skewing_cos_scope[mirror] * hA_cos*hA_cos - 1;
+			x_cal_2 = 2.0 * m_skewing_sin_scope[mirror] * m_skewing_cos_scope[mirror] * hA_cos;
 
-	m_pointCloutPtr->PushBack(basic_point);
+			y_cal_1 = 2.0 * m_skewing_cos_scope[mirror] * m_skewing_cos_scope[mirror] * hA_sin * hA_cos;
+			y_cal_2 = 2.0 * m_skewing_sin_scope[mirror] * m_skewing_cos_scope[mirror] * hA_sin;
+
+			z_cal_1 = 2.0 * m_skewing_sin_scope[mirror] * m_skewing_cos_scope[mirror] * hA_cos;
+			z_cal_2 = 2.0 * m_skewing_sin_scope[mirror] * m_skewing_sin_scope[mirror] - 1;
+		}
+
+		//separate index
+		unsigned char  hexSepIndex = udpData[offset + 136];
+		unsigned short sepIndex = hexSepIndex >> 6;
+
+		int seq = 0;
+		while (seq < 16)
+		{
+			//单回波
+			double hexToInt1 = TwoHextoInt(udpData[offset + seq * 8 + 0], udpData[offset + seq * 8 + 1]);
+			double hexPulse1 = TwoHextoInt(udpData[offset + seq * 8 + 2], udpData[offset + seq * 8 + 3]);
+			//计算距离和脉宽值
+			double L_1 = hexToInt1 * m_calSimple;
+			double pulse_1 = hexPulse1 * m_calPulse; 
+
+			//双回波
+			double hexToInt2 = TwoHextoInt(udpData[offset + seq * 8 + 4], udpData[offset + seq * 8 + 5]);
+			double hexPulse2 = TwoHextoInt(udpData[offset + seq * 8 + 6], udpData[offset + seq * 8 + 7]);
+			//计算距离和脉宽值
+			double L_2 = hexToInt2 * m_calSimple;
+			double pulse_2 = hexPulse2 * m_calPulse;
+
+			//通道号
+			int channel = 65 - (16 * (blocks_num >= 4 ? blocks_num - 4 : blocks_num) + seq + 1);
+
+			double cos_vA_RA = m_verticalChannelAngle_Scope64_cos_vA_RA[channel - 1];
+			double sin_vA_RA = m_verticalChannelAngle_Scope64_sin_vA_RA[channel - 1];
+
+			//echo1
+			{
+				DecodePackage::TWPointData basic_point;
+				basic_point.angle = horizontalAngle;
+				basic_point.mirror = mirror;
+				basic_point.channel = channel;
+
+				double x_tmp = L_1 * (cos_vA_RA * x_cal_1 + sin_vA_RA * x_cal_2);
+				double y_tmp = L_1 * (cos_vA_RA * y_cal_1 + sin_vA_RA * y_cal_2);
+				double z_tmp = -L_1 * (cos_vA_RA * z_cal_1 + sin_vA_RA * z_cal_2);
+				basic_point.x = x_tmp * m_rotate_scope_cos - y_tmp * m_rotate_scope_sin;
+				basic_point.y = x_tmp * m_rotate_scope_sin + y_tmp * m_rotate_scope_cos;
+				basic_point.z = z_tmp;
+				
+				basic_point.echo = 1;
+				basic_point.distance = L_1;
+				basic_point.pulse = pulse_1;
+
+				pointCloud.push_back(std::move(basic_point));
+			}
+
+			//echo2
+			{
+				DecodePackage::TWPointData basic_point;
+				basic_point.angle = horizontalAngle;
+				basic_point.mirror = mirror;
+				basic_point.channel = channel;
+
+				double x_tmp = L_2 * (cos_vA_RA * x_cal_1 + sin_vA_RA * x_cal_2);
+				double y_tmp = L_2 * (cos_vA_RA * y_cal_1 + sin_vA_RA * y_cal_2);
+				double z_tmp = -L_2 * (cos_vA_RA * z_cal_1 + sin_vA_RA * z_cal_2);
+				basic_point.x = x_tmp * m_rotate_scope_cos - y_tmp * m_rotate_scope_sin;
+				basic_point.y = x_tmp * m_rotate_scope_sin + y_tmp * m_rotate_scope_cos;
+				basic_point.z = z_tmp;
+
+				basic_point.echo = 2;
+				basic_point.distance = L_2;
+				basic_point.pulse = pulse_2;
+				
+				pointCloud.push_back(std::move(basic_point));
+			}
+
+			seq++;
+		}
+	}
 }
 
 
 template <typename PointT>
-void DecodePackage<PointT>::UseDecodePointDuetto(int echo, int leftOrRight, int faceIndex, double horAngle, int seq, int channel, float hexL, float hexPulseWidth)
+void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointData>& pointCloud)
 {
-	double cos_vA_RA, sin_vA_RA;
-	double m_rotate_duetto_sin, m_rotate_duetto_cos;
-	
-	if (0 == leftOrRight) //right
+	for (int blocks_num = 0; blocks_num < 8; blocks_num++)
 	{
-		cos_vA_RA = m_verticalChannelAngle_Duetto16R_cos_vA_RA[seq];
-		sin_vA_RA = m_verticalChannelAngle_Duetto16R_sin_vA_RA[seq];
+		int offset_block = blocks_num * 164;
 
-		m_rotate_duetto_sin = m_rotate_duetto_sinR;
-		m_rotate_duetto_cos = m_rotate_duetto_cosR;
+		//2Byte 32-33(index) 时间偏移
+		//2Byte 34-35(index) 标识 低Byte：bit0:0右/1左机芯；bit1-2:0A/1B/2C镜面值
+		//L/R
+		unsigned char  hexLOrR = udpData[35 + offset_block];
+		hexLOrR = hexLOrR << 7;
+		unsigned short leftOrRight = hexLOrR >> 7; //0:右；1:左
+												   //mirror
+		unsigned char  hexMirror = udpData[35 + offset_block];
+		hexMirror = hexMirror << 5;
+		unsigned short mirror = hexMirror >> 6;
+
+		//解析
+		for (int seq = 0; seq < 16; seq++)
+		{
+			//2Byte 36-37(index) 水平角度	hexAngle*0.01
+			double hexHorAngle = TwoHextoInt(udpData[36 + offset_block + seq * 10], udpData[37 + offset_block + seq * 10]);
+			double horAngle = hexHorAngle * 0.01;
+
+			double x_cal_1, x_cal_2, y_cal_1, y_cal_2, z_cal_1, z_cal_2;
+			double cos_vA_RA, sin_vA_RA;
+			double m_rotate_duetto_sin, m_rotate_duetto_cos;
+
+			//left
+			if (1 == leftOrRight)
+			{
+				double hA = 0.5 * (horAngle - m_leftMoveAngle) * m_calRA;
+
+				double hA_sin = sin(hA);
+				double hA_cos = cos(hA);
+
+				unsigned short faceIndex = mirror;
+				x_cal_1 = 2.0 * m_skewing_cos_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos*hA_cos - 1;
+				x_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos;
+
+				y_cal_1 = 2.0 * m_skewing_cos_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_sin * hA_cos;
+				y_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_sin;
+
+				z_cal_1 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos;
+				z_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_sin_duetto[faceIndex] - 1;
+
+
+				cos_vA_RA = m_verticalChannelAngle_Duetto16L_cos_vA_RA[seq];
+				sin_vA_RA = m_verticalChannelAngle_Duetto16L_sin_vA_RA[seq];
+
+				m_rotate_duetto_sin = m_rotate_duetto_sinL;
+				m_rotate_duetto_cos = m_rotate_duetto_cosL;
+			}
+			else //right
+			{
+				double hA = 0.5 * (horAngle - m_rightMoveAngle) * m_calRA;
+
+				double hA_sin = sin(hA);
+				double hA_cos = cos(hA);
+
+				unsigned short faceIndex = mirror;
+				x_cal_1 = 2.0 * m_skewing_cos_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos*hA_cos - 1;
+				x_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos;
+
+				y_cal_1 = 2.0 * m_skewing_cos_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_sin * hA_cos;
+				y_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_sin;
+
+				z_cal_1 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos;
+				z_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_sin_duetto[faceIndex] - 1;
+
+				cos_vA_RA = m_verticalChannelAngle_Duetto16R_cos_vA_RA[seq];
+				sin_vA_RA = m_verticalChannelAngle_Duetto16R_sin_vA_RA[seq];
+
+				m_rotate_duetto_sin = m_rotate_duetto_sinR;
+				m_rotate_duetto_cos = m_rotate_duetto_cosR;
+			}
+
+
+			/*
+			//2Byte 38-39(index) 俯仰角度	(hexAngle-9000)*0.01
+			double hexVerAngle = TwoHextoInt(udpData[38 + offset_block + seq * 10 + 0], udpData[39 + offset_block + seq * 10 + 1]);
+			double verAngle = hexVerAngle * 0.01;
+			*/
+
+			//2Byte 40-41(index) 回波1距离值 hexL1*0.005
+			double hexL1 = TwoHextoInt(udpData[40 + offset_block + seq * 10], udpData[41 + offset_block + seq * 10]);
+			double L_1 = hexL1 * 0.005; //米
+
+			//1Byte 42(index) 回波1强度值/脉宽值 0-255反射强度； hexIntensity*0.125
+			unsigned char hexChar1 = udpData[42 + offset_block + seq * 10];
+			unsigned short hexPulse1 = hexChar1;
+			double pulse_1 = hexPulse1 * 0.125;
+
+			//2Byte 43-44(index) 回波2距离值 hexL2*0.005
+			double hexL2 = TwoHextoInt(udpData[43 + offset_block + seq * 10], udpData[44 + offset_block + seq * 10]);
+			double L_2 = hexL2 * 0.005; //米
+
+			//1Byte 45(index) 回波2强度值/脉宽值 0-255反射强度； hexIntensity*0.125
+			unsigned char hexChar2 = udpData[45 + offset_block + seq * 10];
+			unsigned short hexPulse2 = hexChar2;
+			double pulse_2 = hexPulse2 * 0.125;
+
+
+			//echo 1
+			{
+				DecodePackage::TWPointData basic_point;
+				basic_point.angle = horAngle;
+				basic_point.mirror = mirror;
+				basic_point.left_right = leftOrRight;
+				basic_point.channel = 48 * leftOrRight + (abs(mirror - 2) * 16 + (16 - seq));
+
+				double x_tmp = L_1 * (cos_vA_RA * x_cal_1 + sin_vA_RA * x_cal_2);
+				double y_tmp = L_1 * (cos_vA_RA * y_cal_1 + sin_vA_RA * y_cal_2);
+				double z_tmp = -L_1 * (cos_vA_RA * z_cal_1 + sin_vA_RA * z_cal_2);
+				basic_point.x = x_tmp * m_rotate_duetto_cos - y_tmp * m_rotate_duetto_sin;
+				basic_point.y = x_tmp * m_rotate_duetto_sin + y_tmp * m_rotate_duetto_cos;
+				basic_point.z = z_tmp;
+
+				basic_point.distance = L_1;
+				basic_point.pulse = pulse_1;
+				basic_point.echo = 1;
+
+				pointCloud.push_back(std::move(basic_point));
+
+			}
+
+			//echo2
+			{
+				DecodePackage::TWPointData basic_point;
+				basic_point.angle = horAngle;
+				basic_point.mirror = mirror;
+				basic_point.left_right = leftOrRight;
+				basic_point.channel = 48 * leftOrRight + (abs(mirror - 2) * 16 + (16 - seq));
+
+				double x_tmp = L_2 * (cos_vA_RA * x_cal_1 + sin_vA_RA * x_cal_2);
+				double y_tmp = L_2 * (cos_vA_RA * y_cal_1 + sin_vA_RA * y_cal_2);
+				double z_tmp = -L_2 * (cos_vA_RA * z_cal_1 + sin_vA_RA * z_cal_2);
+				basic_point.x = x_tmp * m_rotate_duetto_cos - y_tmp * m_rotate_duetto_sin;
+				basic_point.y = x_tmp * m_rotate_duetto_sin + y_tmp * m_rotate_duetto_cos;
+				basic_point.z = z_tmp;
+
+				basic_point.distance = L_2;
+				basic_point.pulse = pulse_2;
+				basic_point.echo = 2;
+
+				pointCloud.push_back(std::move(basic_point));
+			}
+		}
 	}
-	else //left
-	{
-		cos_vA_RA = m_verticalChannelAngle_Duetto16L_cos_vA_RA[seq];
-		sin_vA_RA = m_verticalChannelAngle_Duetto16L_sin_vA_RA[seq];
-		m_rotate_duetto_sin = m_rotate_duetto_sinL;
-		m_rotate_duetto_cos = m_rotate_duetto_cosL;
-	}
-
-
-	//distance1
-	double L = hexL * 0.005;
-	if (L <= 0) return;
-	//if (L <= 0 || L > 300) return;
-
-	//pulse/intensity
-	double intensity = hexPulseWidth * 0.125;
-
-	//xyz
-	double x_tmp = L * (cos_vA_RA * x_cal_1 + sin_vA_RA * x_cal_2);
-	double y_tmp = L * (cos_vA_RA * y_cal_1 + sin_vA_RA * y_cal_2);
-	double z_tmp = -L * (cos_vA_RA * z_cal_1 + sin_vA_RA * z_cal_2);
-
-	double x = x_tmp * m_rotate_duetto_cos - y_tmp * m_rotate_duetto_sin;
-	double y = x_tmp * m_rotate_duetto_sin + y_tmp * m_rotate_duetto_cos;
-	double z = z_tmp;
-
-
-	PointT basic_point;
-	setX(basic_point, static_cast<float>(x));
-	setY(basic_point, static_cast<float>(y));
-	setZ(basic_point, static_cast<float>(z));
-	setIntensity(basic_point, static_cast<float>(intensity));
-	setChannel(basic_point, channel);
-	setAngle(basic_point, static_cast<float>(horAngle));
-	setEcho(basic_point, echo);
-	//setT_sec(basic_point, t_sec);
-	//setT_usec(basic_point, t_usec);
-
-	m_pointCloutPtr->PushBack(basic_point);
 }
 
 template <typename PointT>
@@ -817,423 +1221,285 @@ void DecodePackage<PointT>::DecodeTensorLite(char* udpData, unsigned int t_sec, 
 template <typename PointT>
 void DecodePackage<PointT>::DecodeTensorPro(char* udpData, unsigned int t_sec, unsigned int t_usec)
 {
-	for (int blocks_num = 0; blocks_num < 20; blocks_num++)
+	std::vector<DecodePackage::TWPointData> pointData;
+	pointData.reserve(300);
+
+	UseDecodeTensorPro(udpData, pointData, t_sec, t_usec);
+
+	int pointSize = pointData.size();
+	for (int i = 0; i < pointSize; i++)
 	{
-		int offset = blocks_num * 72;
+		const DecodePackage::TWPointData& oriPoint = pointData[i];
 
-		//horizontal angle
-		int hextoAngle = FourHexToInt(udpData[offset + 64], udpData[offset + 65], udpData[offset + 66], udpData[offset + 67]);
-		double horizontalAngle = hextoAngle * 0.00001;
-
-		if (horizontalAngle < m_startAngle && m_pointCloutPtr->Size() != 0)
+		if (oriPoint.angle < m_startAngle && m_pointCloudPtr->Size() != 0)
 		{
-			m_pointCloutPtr->height = 1;
-			m_pointCloutPtr->width = m_pointCloutPtr->Size();
-			m_pointCloutPtr->stamp = (uint64_t)t_sec * 1000 * 1000 + t_usec;
+			m_pointCloudPtr->height = 1;
+			m_pointCloudPtr->width = m_pointCloudPtr->Size();
+			m_pointCloudPtr->stamp = (uint64_t)t_sec * 1000 * 1000 + t_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
-			if (m_funcPointCloud) m_funcPointCloud(m_pointCloutPtr);
+			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
 
 			//create
-			m_pointCloutPtr = std::make_shared<TWPointCloud<PointT>>();
-			m_pointCloutPtr->Reserve(360);
+			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
+			m_pointCloudPtr->Reserve(10000);
 			continue;
 		}
-		if (horizontalAngle <m_startAngle || horizontalAngle > m_endAngle) continue;
 
-		int seq = 0;
-		while (seq < 16)
-		{
-			//distance
-			float hexL = TwoHextoInt(udpData[offset + seq * 4], udpData[offset + seq * 4 + 1])*1.0f;
-			//
-			float hexPlusWidth = TwoHextoInt(udpData[offset + seq * 4 + 2], udpData[offset + seq * 4 + 3])*1.0f;
+		if (oriPoint.angle <m_startAngle || oriPoint.angle > m_endAngle) continue;
 
-			//channel 1-16
-			int channel = seq + 1;
+		if (oriPoint.distance <= 0) continue;
 
-			//time of point
-			unsigned int cur_sec = t_sec;
-			unsigned int cur_usec = t_usec;
-			if (t_usec < blocks_num * 29.4) //The time interval between the two columns is 29.4 subtle
-			{
-				cur_sec = cur_usec - 1;
-				cur_usec = (unsigned int)(t_usec + 1000000 - blocks_num * 29.4);
-			}
-			else
-			{
-				cur_usec = (unsigned int)(t_usec - blocks_num * 29.4);
-			}
+		PointT basic_point;
+		setX(basic_point, static_cast<float>(oriPoint.x));
+		setY(basic_point, static_cast<float>(oriPoint.y));
+		setZ(basic_point, static_cast<float>(oriPoint.z));
+		setIntensity(basic_point, static_cast<float>(oriPoint.pulse));
+		setChannel(basic_point, oriPoint.channel);
+		setAngle(basic_point, static_cast<float>(oriPoint.angle));
+		setEcho(basic_point, oriPoint.echo);
+		setColor(basic_point, static_cast<float>(oriPoint.distance));
+		setT_sec(basic_point, t_sec);
+		setT_usec(basic_point, t_usec);
 
-			//using
-			UseDecodePointPro(1, horizontalAngle, channel, hexL, hexPlusWidth, offset, udpData, cur_sec, cur_usec);
-
-			seq++;
-		}
+		m_pointCloudPtr->PushBack(std::move(basic_point));
 	}
 }
 
 template <typename PointT>
 void DecodePackage<PointT>::DecodeTensorPro_echo2(char* udpData, unsigned int t_sec, unsigned int t_usec)
 {
-	for (int blocks_num = 0; blocks_num < 20; blocks_num++)
+	std::vector<DecodePackage::TWPointData> pointData;
+	pointData.reserve(300);
+
+	UseDecodeTensorPro_echo2(udpData, pointData, t_sec, t_usec);
+
+	int pointSize = pointData.size();
+	for (int i = 0; i < pointSize; i++)
 	{
-		int offset = blocks_num * 72;
+		const DecodePackage::TWPointData& oriPoint = pointData[i];
 
-		//horizontal angle
-		int hextoAngle = FourHexToInt(udpData[offset + 64], udpData[offset + 65], udpData[offset + 66], udpData[offset + 67]);
-		double horizontalAngle = hextoAngle * 0.00001;
-
-		if (horizontalAngle < m_startAngle && m_pointCloutPtr->Size() != 0)
+		if (oriPoint.angle < m_startAngle && m_pointCloudPtr->Size() != 0)
 		{
-			m_pointCloutPtr->height = 1;
-			m_pointCloutPtr->width = m_pointCloutPtr->Size();
+			m_pointCloudPtr->height = 1;
+			m_pointCloudPtr->width = m_pointCloudPtr->Size();
+			m_pointCloudPtr->stamp = (uint64_t)t_sec * 1000 * 1000 + t_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
-			if (m_funcPointCloud) m_funcPointCloud(m_pointCloutPtr);
+			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
 
 			//create
-			m_pointCloutPtr = std::make_shared<TWPointCloud<PointT>>();
-			m_pointCloutPtr->Reserve(360);
+			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
+			m_pointCloudPtr->Reserve(10000);
 			continue;
 		}
-		if (horizontalAngle <m_startAngle || horizontalAngle > m_endAngle) continue;
 
-		int seq = 0;
-		while (seq < 16)
-		{
-			//distance
-			float hexL = TwoHextoInt(udpData[offset + seq * 4], udpData[offset + seq * 4 + 1])*1.0f;
-			//
-			float hexPlusWidth = TwoHextoInt(udpData[offset + seq * 4 + 2], udpData[offset + seq * 4 + 3])*1.0f;
+		if (oriPoint.angle <m_startAngle || oriPoint.angle > m_endAngle) continue;
 
-			//channel: 1-16
-			int channel = seq + 1;
+		if (oriPoint.distance <= 0) continue;
 
-			//using
-			UseDecodePointPro(blocks_num%2 + 1, horizontalAngle, channel, hexL, hexPlusWidth, offset, udpData, t_sec, t_usec);
+		PointT basic_point;
+		setX(basic_point, static_cast<float>(oriPoint.x));
+		setY(basic_point, static_cast<float>(oriPoint.y));
+		setZ(basic_point, static_cast<float>(oriPoint.z));
+		setIntensity(basic_point, static_cast<float>(oriPoint.pulse));
+		setChannel(basic_point, oriPoint.channel);
+		setAngle(basic_point, static_cast<float>(oriPoint.angle));
+		setEcho(basic_point, oriPoint.echo);
+		setColor(basic_point, static_cast<float>(oriPoint.distance));
+		setT_sec(basic_point, t_sec);
+		setT_usec(basic_point, t_usec);
 
-			seq++;
-		}
+		m_pointCloudPtr->PushBack(std::move(basic_point));
 	}
 }
 
 template <typename PointT>
 void DecodePackage<PointT>::DecodeTensorPro0332(char* udpData, unsigned int t_sec, unsigned int t_usec)
 {
-	for (int blocks_num = 0; blocks_num < 20; blocks_num++)
+	std::vector<DecodePackage::TWPointData> pointData;
+	pointData.reserve(300);
+
+	UseDecodeTensorPro0332(udpData, pointData, t_sec, t_usec);
+
+	int pointSize = pointData.size();
+	for (int i = 0; i < pointSize; i++)
 	{
-		int offset = blocks_num * 72;
+		const DecodePackage::TWPointData& oriPoint = pointData[i];
 
-		//horizontal angle
-		int hextoAngle = FourHexToInt(udpData[offset + 64], udpData[offset + 65], udpData[offset + 66], udpData[offset + 67]);
-		double horizontalAngle = hextoAngle * 0.00001;
-		//face index
-		unsigned char  hexMirror = udpData[offset + 68];
-		hexMirror = hexMirror >> 7;
-		unsigned short faceIndex = hexMirror;
-
-		if (horizontalAngle < m_startAngle && 0 == faceIndex && m_pointCloutPtr->Size() != 0)
+		if (oriPoint.angle < m_startAngle && 0 == oriPoint.mirror && m_pointCloudPtr->Size() != 0)
 		{
-			m_pointCloutPtr->height = 1;
-			m_pointCloutPtr->width = m_pointCloutPtr->Size();
-			m_pointCloutPtr->stamp = (uint64_t)t_sec * 1000 * 1000 + t_usec;
+			m_pointCloudPtr->height = 1;
+			m_pointCloudPtr->width = m_pointCloudPtr->Size();
+			m_pointCloudPtr->stamp = (uint64_t)t_sec * 1000 * 1000 + t_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
-			if (m_funcPointCloud) m_funcPointCloud(m_pointCloutPtr);
+			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
 
 			//create
-			m_pointCloutPtr = std::make_shared<TWPointCloud<PointT>>();
-			m_pointCloutPtr->Reserve(360);
+			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
+			m_pointCloudPtr->Reserve(10000);
 			continue;
 		}
-		if (horizontalAngle < m_startAngle || horizontalAngle > m_endAngle) continue;
 
-		//
-		double hA = 0.5 * horizontalAngle * m_calRA;
-		double hA_sin = sin(hA);
-		double hA_cos = cos(hA);
+		if (oriPoint.angle <m_startAngle || oriPoint.angle > m_endAngle) continue;
 
-		x_cal_1 = 2.0 * m_skewing_cos_tsp[faceIndex] * m_skewing_cos_tsp[faceIndex] * hA_cos*hA_cos - 1;
-		x_cal_2 = 2.0 * m_skewing_sin_tsp[faceIndex] * m_skewing_cos_tsp[faceIndex] * hA_cos;
+		if (oriPoint.distance <= 0) continue;
 
-		y_cal_1 = 2.0 * m_skewing_cos_tsp[faceIndex] * m_skewing_cos_tsp[faceIndex] * hA_sin * hA_cos;
-		y_cal_2 = 2.0 * m_skewing_sin_tsp[faceIndex] * m_skewing_cos_tsp[faceIndex] * hA_sin;
+		PointT basic_point;
+		setX(basic_point, static_cast<float>(oriPoint.x));
+		setY(basic_point, static_cast<float>(oriPoint.y));
+		setZ(basic_point, static_cast<float>(oriPoint.z));
+		setIntensity(basic_point, static_cast<float>(oriPoint.pulse));
+		setChannel(basic_point, oriPoint.channel);
+		setAngle(basic_point, static_cast<float>(oriPoint.angle));
+		setEcho(basic_point, oriPoint.echo);
+		setColor(basic_point, static_cast<float>(oriPoint.distance));
+		setT_sec(basic_point, t_sec);
+		setT_usec(basic_point, t_usec);
 
-		z_cal_1 = 2.0 * m_skewing_sin_tsp[faceIndex] * m_skewing_cos_tsp[faceIndex] * hA_cos;
-		z_cal_2 = 2.0 * m_skewing_sin_tsp[faceIndex] * m_skewing_sin_tsp[faceIndex] - 1;
-
-
-		int seq = 0;
-		while (seq < 16)
-		{
-			//distance
-			float hexL = TwoHextoInt(udpData[offset + seq * 4], udpData[offset + seq * 4 + 1])*1.0f;
-			//
-			float hexPlusWidth = TwoHextoInt(udpData[offset + seq * 4 + 2], udpData[offset + seq * 4 + 3])*1.0f;
-
-			//channel 1-16
-			int channel = seq + 1;
-
-			//time of point
-			unsigned int cur_sec = t_sec;
-			unsigned int cur_usec = t_usec;
-			if (t_usec < blocks_num * 29.4) //The time interval between the two columns is 29.4 subtle
-			{
-				cur_sec = cur_usec - 1;
-				cur_usec = (unsigned int)(t_usec + 1000000 - blocks_num * 29.4);
-			}
-			else
-			{
-				cur_usec = (unsigned int)(t_usec - blocks_num * 29.4);
-			}
-
-			//using
-			UseDecodePointTSP03_32(1, horizontalAngle, channel, hexL, hexPlusWidth, offset, udpData, cur_sec, cur_usec);
-
-			seq++;
-		}
+		m_pointCloudPtr->PushBack(std::move(basic_point));
 	}
 }
 
 template <typename PointT>
 void DecodePackage<PointT>::DecodeScope(char* udpData)
 {
-	for (int blocks_num = 0; blocks_num < 8; blocks_num++)
+	std::vector<DecodePackage::TWPointData> pointData;
+	pointData.reserve(300);
+
+	UseDecodeScope(udpData, pointData);
+
+	int pointSize = pointData.size();
+	for (int i = 0; i < pointSize; i++)
 	{
-		int offset = blocks_num * 140;
+		const DecodePackage::TWPointData& oriPoint = pointData[i];
 
-		//horizontal angle index: 128-131
-		int hextoAngle = FourHexToInt(udpData[offset + 128], udpData[offset + 129], udpData[offset + 130], udpData[offset + 131]);
-		double horizontalAngle = hextoAngle * 0.00001;
-
-		if (horizontalAngle < m_startAngle && m_pointCloutPtr->Size() != 0)
+		if (oriPoint.angle < m_startAngle && m_pointCloudPtr->Size() != 0)
 		{
-			m_pointCloutPtr->height = 1;
-			m_pointCloutPtr->width = m_pointCloutPtr->Size();
+			m_pointCloudPtr->height = 1;
+			m_pointCloudPtr->width = m_pointCloudPtr->Size();
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
-			if (m_funcPointCloud) m_funcPointCloud(m_pointCloutPtr);
+			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
 
 			//create
-			m_pointCloutPtr = std::make_shared<TWPointCloud<PointT>>();
-			m_pointCloutPtr->Reserve(360);
+			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
+			m_pointCloudPtr->Reserve(10000);
 			continue;
 		}
-		if (horizontalAngle <m_startAngle || horizontalAngle > m_endAngle) continue;
 
+		if (oriPoint.angle <m_startAngle || oriPoint.angle > m_endAngle) continue;
 
-		//separate index
-		unsigned char  hexSepIndex = udpData[offset + 136];
-		unsigned short sepIndex = hexSepIndex >> 6;
-		//face id
-		unsigned char  hexFaceIndex = udpData[offset + 136];
-		hexFaceIndex = hexFaceIndex << 2;
-		unsigned short faceIndex = hexFaceIndex >> 6;
+		if (oriPoint.distance <= 0) continue;
 
-		int seq = 0;
-		while (seq < 16)
-		{
-			//echo 1
-			float hexL1 = static_cast<float>(TwoHextoInt(udpData[offset + seq * 8 + 0], udpData[offset + seq * 8 + 1]));
-			float hexPulseWidth1 = static_cast<float>(TwoHextoInt(udpData[offset + seq * 8 + 2], udpData[offset + seq * 8 + 3]));
+		PointT basic_point;
+		setX(basic_point, static_cast<float>(oriPoint.x));
+		setY(basic_point, static_cast<float>(oriPoint.y));
+		setZ(basic_point, static_cast<float>(oriPoint.z));
+		setIntensity(basic_point, static_cast<float>(oriPoint.pulse));
+		setChannel(basic_point, oriPoint.channel);
+		setAngle(basic_point, static_cast<float>(oriPoint.angle));
+		setEcho(basic_point, oriPoint.echo);
+		setColor(basic_point, static_cast<float>(oriPoint.distance));
+		//setT_sec(basic_point, t_sec);
+		//setT_usec(basic_point, t_usec);
 
-			//echo 2
-			float hexL2 = static_cast<float>(TwoHextoInt(udpData[offset + seq * 8 + 4], udpData[offset + seq * 8 + 5]));
-			float hexPulseWidth2 = static_cast<float>(TwoHextoInt(udpData[offset + seq * 8 + 6], udpData[offset + seq * 8 + 7]));
-
-			//channel
-			int channel = 65 - (16 * (blocks_num >= 4 ? blocks_num - 4 : blocks_num) + seq + 1);
-
-			//using
-			UseDecodePointScope(1, sepIndex, faceIndex, horizontalAngle, channel, hexL1, hexPulseWidth1);
-			UseDecodePointScope(2, sepIndex, faceIndex, horizontalAngle, channel, hexL2, hexPulseWidth2);
-
-			seq++;
-		}
+		m_pointCloudPtr->PushBack(std::move(basic_point));
 	}
 }
 
 template <typename PointT>
 void DecodePackage<PointT>::DecodeScope192(char* udpData)
 {
-	double horizontalAngle = 0;
-	//face id
-	unsigned short faceIndex = 0;
+	std::vector<DecodePackage::TWPointData> pointData;
+	pointData.reserve(300);
 
-	for (int blocks_num = 0; blocks_num < 8; blocks_num++)
+	UseDecodeScope192(udpData, pointData);
+
+	int pointSize = pointData.size();
+	for (int i = 0; i < pointSize; i++)
 	{
-		int offset = blocks_num * 140;
-		if (0 == blocks_num || 4 == blocks_num)
+		const DecodePackage::TWPointData& oriPoint = pointData[i];
+
+		if (oriPoint.angle < m_startAngle && 0 == oriPoint.mirror && m_pointCloudPtr->Size() != 0)
 		{
-			//horizontal angle index: 128-131
-			int HextoAngle = FourHexToInt(udpData[offset + 128], udpData[offset + 129], udpData[offset + 130], udpData[offset + 131]);
-			horizontalAngle = HextoAngle  * 0.00001;
-
-			unsigned char  hexMirror = udpData[offset + 136];
-			hexMirror = hexMirror << 2;
-			faceIndex = hexMirror >> 6;
-
-			double hA = 0.5 * (horizontalAngle + 10.0) * m_calRA;
-			double hA_sin = sin(hA);
-			double hA_cos = cos(hA);
-
-			x_cal_1 = 2.0 * m_skewing_cos_scope[faceIndex] * m_skewing_cos_scope[faceIndex] * hA_cos*hA_cos - 1;
-			x_cal_2 = 2.0 * m_skewing_sin_scope[faceIndex] * m_skewing_cos_scope[faceIndex] * hA_cos;
-
-			y_cal_1 = 2.0 * m_skewing_cos_scope[faceIndex] * m_skewing_cos_scope[faceIndex] * hA_sin * hA_cos;
-			y_cal_2 = 2.0 * m_skewing_sin_scope[faceIndex] * m_skewing_cos_scope[faceIndex] * hA_sin;
-
-			z_cal_1 = 2.0 * m_skewing_sin_scope[faceIndex] * m_skewing_cos_scope[faceIndex] * hA_cos;
-			z_cal_2 = 2.0 * m_skewing_sin_scope[faceIndex] * m_skewing_sin_scope[faceIndex] - 1;
-		}
-
-		if (horizontalAngle < m_startAngle && 0 == faceIndex && m_pointCloutPtr->Size() != 0)
-		{
-			m_pointCloutPtr->height = 1;
-			m_pointCloutPtr->width = m_pointCloutPtr->Size();
+			m_pointCloudPtr->height = 1;
+			m_pointCloudPtr->width = m_pointCloudPtr->Size();
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
-			if (m_funcPointCloud) m_funcPointCloud(m_pointCloutPtr);
+			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
 
 			//create
-			m_pointCloutPtr = std::make_shared<TWPointCloud<PointT>>();
-			m_pointCloutPtr->Reserve(360);
+			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
+			m_pointCloudPtr->Reserve(10000);
 			continue;
 		}
-		if (horizontalAngle <m_startAngle || horizontalAngle > m_endAngle) continue;
 
+		if (oriPoint.angle <m_startAngle || oriPoint.angle > m_endAngle) continue;
 
-		//separate index
-		unsigned char  hexSepIndex = udpData[offset + 136];
-		unsigned short sepIndex = hexSepIndex >> 6;
+		if (oriPoint.distance <= 0) continue;
 
-		int seq = 0;
-		while (seq < 16)
-		{
-			//echo 1
-			float hexL1 = static_cast<float>(TwoHextoInt(udpData[offset + seq * 8 + 0], udpData[offset + seq * 8 + 1]));
-			float hexPulseWidth1 = static_cast<float>(TwoHextoInt(udpData[offset + seq * 8 + 2], udpData[offset + seq * 8 + 3]));
+		PointT basic_point;
+		setX(basic_point, static_cast<float>(oriPoint.x));
+		setY(basic_point, static_cast<float>(oriPoint.y));
+		setZ(basic_point, static_cast<float>(oriPoint.z));
+		setIntensity(basic_point, static_cast<float>(oriPoint.pulse));
+		setChannel(basic_point, oriPoint.channel);
+		setAngle(basic_point, static_cast<float>(oriPoint.angle));
+		setEcho(basic_point, oriPoint.echo);
+		setColor(basic_point, static_cast<float>(oriPoint.distance));
+		//setT_sec(basic_point, t_sec);
+		//setT_usec(basic_point, t_usec);
 
-			//echo 2
-			float hexL2 = static_cast<float>(TwoHextoInt(udpData[offset + seq * 8 + 4], udpData[offset + seq * 8 + 5]));
-			float hexPulseWidth2 = static_cast<float>(TwoHextoInt(udpData[offset + seq * 8 + 6], udpData[offset + seq * 8 + 7]));
-
-			//channel
-			int channel = 65 - (16 * (blocks_num >= 4 ? blocks_num - 4 : blocks_num) + seq + 1);
-
-			//using
-			UseDecodePointScope_192(1, sepIndex, faceIndex, horizontalAngle, channel, hexL1, hexPulseWidth1);
-			UseDecodePointScope_192(2, sepIndex, faceIndex, horizontalAngle, channel, hexL2, hexPulseWidth2);
-
-			seq++;
-		}
+		m_pointCloudPtr->PushBack(std::move(basic_point));
 	}
 }
 
 template <typename PointT>
 void DecodePackage<PointT>::DecodeDuetto(char* udpData)
 {
-	for (int blocks_num = 0; blocks_num<8; blocks_num++)
+	std::vector<DecodePackage::TWPointData> pointData;
+	pointData.reserve(300);
+
+	UseDecodeDuetto(udpData, pointData);
+
+	int pointSize = pointData.size();
+	for (int i=0; i<pointSize; i++)
 	{
-		int offset_block = blocks_num * 164;
-
-		//L/R
-		unsigned char  hexLOrR = udpData[35 + offset_block];
-		hexLOrR = hexLOrR << 7;
-		unsigned short leftOrRight = hexLOrR >> 7;
+		const DecodePackage::TWPointData& oriPoint = pointData[i];
 		
-		//face id
-		unsigned char  hexFaceID = udpData[35 + offset_block];
-		hexFaceID = hexFaceID << 5;
-		unsigned short faceIndex = hexFaceID >> 6;
-
-		for (int seq = 0; seq<16; seq++)
+		if (oriPoint.angle < m_startAngle && 1 == oriPoint.mirror && m_pointCloudPtr->Size() != 0)
 		{
+			m_pointCloudPtr->height = 1;
+			m_pointCloudPtr->width = m_pointCloudPtr->Size();
 
-			//2Byte 36-37(index) horizontal angle:hexHorAngle*0.01
-			double hexHorAngle = TwoHextoInt(udpData[36 + offset_block + seq * 10], udpData[37 + offset_block + seq * 10]);
-			double horAngle = hexHorAngle * 0.01;
+			std::lock_guard<std::mutex> lock(*m_mutex);
+			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
 
-
-			if (horAngle < m_startAngle && 1 == faceIndex && m_pointCloutPtr->Size() != 0)
-			{
-				m_pointCloutPtr->height = 1;
-				m_pointCloutPtr->width = m_pointCloutPtr->Size();
-
-				std::lock_guard<std::mutex> lock(*m_mutex);
-				if (m_funcPointCloud) m_funcPointCloud(m_pointCloutPtr);
-
-				//create
-				m_pointCloutPtr = std::make_shared<TWPointCloud<PointT>>();
-				m_pointCloutPtr->Reserve(360);
-				continue;
-			}
-			if (horAngle <m_startAngle || horAngle > m_endAngle) continue;
-
-
-			//left
-			if (1 == leftOrRight)
-			{
-				double hA = 0.5 * (horAngle - m_leftMoveAngle) * m_calRA;
-
-				double hA_sin = sin(hA);
-				double hA_cos = cos(hA);
-
-				x_cal_1 = 2.0 * m_skewing_cos_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos*hA_cos - 1;
-				x_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos;
-
-				y_cal_1 = 2.0 * m_skewing_cos_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_sin * hA_cos;
-				y_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_sin;
-
-				z_cal_1 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos;
-				z_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_sin_duetto[faceIndex] - 1;
-			}
-			else
-			//right
-			{
-				double hA = 0.5 * (horAngle - m_rightMoveAngle) * m_calRA;
-
-				double hA_sin = sin(hA);
-				double hA_cos = cos(hA);
-
-				x_cal_1 = 2.0 * m_skewing_cos_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos*hA_cos - 1;
-				x_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos;
-
-				y_cal_1 = 2.0 * m_skewing_cos_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_sin * hA_cos;
-				y_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_sin;
-
-				z_cal_1 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos;
-				z_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_sin_duetto[faceIndex] - 1;
-			}
-
-
-			/*
-			//2Byte 38-39(index) vertical angle	(hexVerAngle-9000)*0.01
-			double hexVerAngle = TwoHextoInt(udpData[38 + offset_block + seq * 10 + 0], udpData[39 + offset_block + seq * 10 + 1]);
-			double verAngle = hexVerAngle * 0.01;
-			*/
-
-			//2Byte 40-41(index) echo = 1 distance:hexL1*0.005
-			float hexL1 = static_cast<float>(TwoHextoInt(udpData[40 + offset_block + seq * 10], udpData[41 + offset_block + seq * 10]));
-
-			//1Byte 42(index) echo = 1 pulse:hexIntensity*0.125
-			unsigned char hexChar1 = udpData[42 + offset_block + seq * 10];
-			unsigned short hexPulse1 = hexChar1;
-
-			//2Byte 43-44(index) echo = 2 distance:hexL2*0.005
-			float hexL2 = static_cast<float>(TwoHextoInt(udpData[43 + offset_block + seq * 10], udpData[44 + offset_block + seq * 10]));
-
-			//1Byte 45(index) echo = 2 pulse:hexIntensity*0.125
-			unsigned char hexChar2 = udpData[45 + offset_block + seq * 10];
-			unsigned short hexPulse2 = hexChar2;
-
-			//channel
-			int channel = 48 * leftOrRight + (abs((int)faceIndex - 2) * 16 + (16 - seq));
-
-			UseDecodePointDuetto(1, leftOrRight, faceIndex, horAngle, seq, channel, hexL1, hexPulse1);
-			UseDecodePointDuetto(2, leftOrRight, faceIndex, horAngle, seq, channel, hexL2, hexPulse2);
+			//create
+			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
+			m_pointCloudPtr->Reserve(10000);
+			continue;
 		}
+
+		if (oriPoint.angle <m_startAngle || oriPoint.angle > m_endAngle || oriPoint.distance <= 0) continue;
+
+		if (oriPoint.distance <= 0) continue;
+
+		PointT basic_point;
+		setX(basic_point, static_cast<float>(oriPoint.x));
+		setY(basic_point, static_cast<float>(oriPoint.y));
+		setZ(basic_point, static_cast<float>(oriPoint.z));
+		setIntensity(basic_point, static_cast<float>(oriPoint.pulse));
+		setChannel(basic_point, oriPoint.channel);
+		setAngle(basic_point, static_cast<float>(oriPoint.angle));
+		setEcho(basic_point, oriPoint.echo);
+		setColor(basic_point, static_cast<float>(oriPoint.distance));
+		//setT_sec(basic_point, t_sec);
+		//setT_usec(basic_point, t_usec);
+
+		m_pointCloudPtr->PushBack(std::move(basic_point));
 	}
 }
 
