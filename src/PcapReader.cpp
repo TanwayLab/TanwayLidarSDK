@@ -115,6 +115,11 @@ void PcapReader::ThreadLoadProcess()
 			if (m_pause)
 			{
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+				//clear cash time
+				last_tv_sec = 0;
+				last_tv_usec = 0;
+				
 				continue;
 			}
 
@@ -130,6 +135,7 @@ void PcapReader::ThreadLoadProcess()
 			{
 				last_tv_sec = pcap_pkt_hdr.tv_sec;
 				last_tv_usec = pcap_pkt_hdr.tv_usec;
+				beginPlayTime = std::chrono::system_clock::now();
 			}
 			else
 			{

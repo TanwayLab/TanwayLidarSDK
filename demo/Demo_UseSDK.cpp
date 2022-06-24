@@ -92,12 +92,10 @@ int main()
 	/*
 	*using pcap file to replay.
 	*/
-	//TanwayLidarSDK<PointXYZ> lidar("./5678_32.pcap", "192.168.111.51", 5600, LT_TSP0332, true);
+	//TanwayLidarSDK<PointXYZ> lidar("E:/record/tensor.pcap", "192.168.111.51", 5600, LT_TensorPro, true);
 	//lidar.RegPointCloudCallback(pointCloudCallback);
 	//lidar.RegGPSCallback(gpsCallback);
 	//lidar.RegExceptionCallback(exceptionCallback);
-	//lidar.SetCorrectedAngleToScope192(0.0f, 0.1f, 0.2f);
-	//lidar.SetCorrectedAngleToTSP0332(0.0f, -6.0f);
 	//lidar.Start();
 	
 
