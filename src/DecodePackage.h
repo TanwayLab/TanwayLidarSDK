@@ -875,6 +875,7 @@ void DecodePackage<PointT>::UseDecodeScope(char* udpData, std::vector<TWPointDat
 			}
 
 			//echo2
+			/*
 			{
 				double x = L_2 * cos_vA_RA * cos_hA;
 				double y = L_2 * cos_vA_RA * sin_hA;
@@ -884,7 +885,7 @@ void DecodePackage<PointT>::UseDecodeScope(char* udpData, std::vector<TWPointDat
 				basic_point.x = x;
 				basic_point.y = y;
 				basic_point.z = z;
-				basic_point.distance = L_1;
+				basic_point.distance = L_2;
 				basic_point.channel = channel; 
 				basic_point.angle = horizontalAngle;
 				basic_point.pulse = pulse_1;
@@ -892,6 +893,7 @@ void DecodePackage<PointT>::UseDecodeScope(char* udpData, std::vector<TWPointDat
 				basic_point.mirror = mirror;
 				pointCloud.push_back(std::move(basic_point));
 			}
+			*/
 			seq++;
 		}
 	}
@@ -986,6 +988,7 @@ void DecodePackage<PointT>::UseDecodeScope192(char* udpData, std::vector<TWPoint
 			}
 
 			//echo2
+			/*
 			{
 				DecodePackage::TWPointData basic_point;
 				basic_point.angle = horizontalAngle;
@@ -1005,7 +1008,7 @@ void DecodePackage<PointT>::UseDecodeScope192(char* udpData, std::vector<TWPoint
 				
 				pointCloud.push_back(std::move(basic_point));
 			}
-
+			*/
 			seq++;
 		}
 	}
@@ -1140,6 +1143,7 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 			}
 
 			//echo2
+			/*
 			{
 				DecodePackage::TWPointData basic_point;
 				basic_point.angle = horAngle;
@@ -1160,6 +1164,7 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 
 				pointCloud.push_back(std::move(basic_point));
 			}
+			*/
 		}
 	}
 }
