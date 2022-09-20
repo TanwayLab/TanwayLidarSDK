@@ -96,6 +96,7 @@ public:
 	void SetLidarType(TWLidarType lidarType){m_lidarType = lidarType;}
 	void SetCorrectionAngleToTSP0332(float angle1, float angle2);
 	void SetCorrectionAngleToScope192(float angle1, float angle2, float angle3);
+	void SetCorrectionAngleToScopeMiniA2_192(float angle1, float angle2, float angle3);
 	void SetMoveAngleToDuetto(float leftMoveAngle, float rightMoveAngle);
 	void SetMutex(std::mutex* mutex){ m_mutex = mutex; }
 
@@ -110,6 +111,7 @@ private:
 	void DecodeTensorPro0332(char* udpData, unsigned int t_sec, unsigned int t_usec);
 	void DecodeScope(char* udpData);
 	void DecodeScope192(char* udpData);
+	void DecodeScopeMiniA2_192(char* udpData);
 	void DecodeDuetto(char* udpData);
 
 	void DecodeGPSData(char* udpData);	//decode gps date
@@ -121,6 +123,7 @@ protected:
 	virtual void UseDecodeTensorPro0332(char* udpData, std::vector<TWPointData>& pointCloud, unsigned int t_sec, unsigned int t_usec);
 	virtual void UseDecodeScope(char* udpData, std::vector<TWPointData>& pointCloud);
 	virtual void UseDecodeScope192(char* udpData, std::vector<TWPointData>& pointCloud);
+	virtual void UseDecodeScopeMiniA2_192(char* udpData, std::vector<TWPointData>& pointCloud);
 	virtual void UseDecodeDuetto(char* udpData, std::vector<TWPointData>& pointCloud);
 
 
@@ -165,6 +168,20 @@ protected:
 	double m_skewing_cos_scope[3] = { 0.0 };
 	double m_rotate_scope_sin = sin(-10.0 * m_calRA);
 	double m_rotate_scope_cos = cos(-10.0 * m_calRA);
+
+	//ScopeMiniA2-192
+	float m_verticalChannelAngle_Scope64_A2[64] =
+	{
+		-12.368f, -11.986f, -11.603f, -11.219f, -10.834f, -10.448f, -10.061f, -9.674f, -9.285f, -8.896f, -8.505f, -8.115f, -7.723f, -7.331f, -6.938f, -6.545f, -6.151f, -5.756f, -5.361f, -4.966f, -4.570f, -4.174f, -3.777f, -3.381f, -2.983f, -2.586f, -2.189f, -1.791f, -1.393f, -0.995f, -0.597f, -0.199f,
+		0.199f, 0.597f, 0.995f, 1.393f, 1.791f, 2.189f, 2.586f, 2.983f, 3.381f, 3.777f, 4.174f, 4.570f, 4.966f, 5.361f, 5.756f, 6.151f, 6.545f, 6.938f, 7.331f, 7.723f, 8.115f, 8.505f, 8.896f, 9.285f, 9.674f, 10.061f, 10.448f, 10.834f, 11.219f, 11.603f, 11.986f, 12.368f
+	};
+	float m_verticalChannelAngle_ScopeMiniA2_cos_vA_RA[64] = { 0.f };
+	float m_verticalChannelAngle_ScopeMiniA2_sin_vA_RA[64] = { 0.f };
+	double m_skewing_scopeMiniA2_Angle[3] = {0.0, 0.12, 0.24};
+	double m_skewing_scopeMiniA2_Angle_Correct[3] = {0.0, 0.12, 0.24};
+	double m_skewing_sin_scopeMiniA2_192[3] = { 0.0 };
+	double m_skewing_cos_scopeMiniA2_192[3] = { 0.0 };
+
 
 	//Duetto
 	float m_verticalChannelsAngle_Duetto16L[16] =
@@ -248,6 +265,25 @@ void DecodePackage<PointT>::SetCorrectionAngleToScope192(float angle1, float ang
 	m_skewing_cos_scope[0] = cos(angle1 * m_calRA);
 	m_skewing_cos_scope[1] = cos(angle2 * m_calRA);
 	m_skewing_cos_scope[2] = cos(angle3 * m_calRA);
+}
+
+template <typename PointT>
+void DecodePackage<PointT>::SetCorrectionAngleToScopeMiniA2_192(float angle1, float angle2, float angle3)
+{
+	m_skewing_scopeMiniA2_Angle[0] = angle1;
+	m_skewing_scopeMiniA2_Angle[1] = angle2;
+	m_skewing_scopeMiniA2_Angle[2] = angle3;
+	m_skewing_scopeMiniA2_Angle_Correct[0] = angle1;
+	m_skewing_scopeMiniA2_Angle_Correct[1] = angle2;
+	m_skewing_scopeMiniA2_Angle_Correct[2] = angle3;
+
+	m_skewing_sin_scopeMiniA2_192[0] = sin(angle1 * m_calRA);
+	m_skewing_sin_scopeMiniA2_192[1] = sin(angle2 * m_calRA);
+	m_skewing_sin_scopeMiniA2_192[2] = sin(angle3 * m_calRA);
+
+	m_skewing_cos_scopeMiniA2_192[0] = cos(angle1 * m_calRA);
+	m_skewing_cos_scopeMiniA2_192[1] = cos(angle2 * m_calRA);
+	m_skewing_cos_scopeMiniA2_192[2] = cos(angle3 * m_calRA);
 }
 
 template <typename PointT>
@@ -419,21 +455,35 @@ void DecodePackage<PointT>::InitBasicVariables()
 	run_exit.store(false);
 
 	//Scope-192
-	double ScopeB_Elevation_A = 0.12;
-	double ScopeC_Elevation_A = 0.24;
 	m_skewing_sin_scope[0] = sin(0.0 * m_calRA);
-	m_skewing_sin_scope[1] = sin(ScopeB_Elevation_A * m_calRA);
-	m_skewing_sin_scope[2] = sin(ScopeC_Elevation_A * m_calRA);
+	m_skewing_sin_scope[1] = sin(0.12 * m_calRA);
+	m_skewing_sin_scope[2] = sin(0.24 * m_calRA);
 
 	m_skewing_cos_scope[0] = cos(0.0 * m_calRA);
-	m_skewing_cos_scope[1] = cos(ScopeB_Elevation_A * m_calRA);
-	m_skewing_cos_scope[2] = cos(ScopeC_Elevation_A * m_calRA);
+	m_skewing_cos_scope[1] = cos(0.12 * m_calRA);
+	m_skewing_cos_scope[2] = cos(0.24 * m_calRA);
 
 	for (int i = 0; i < 64; i++)
 	{
 		double vA = m_verticalChannelAngle_Scope64[i];
 		m_verticalChannelAngle_Scope64_cos_vA_RA[i] = cos(vA * m_calRA);
 		m_verticalChannelAngle_Scope64_sin_vA_RA[i] = sin(vA * m_calRA);
+	}
+
+	//Scope-Mini-A2-192
+	m_skewing_sin_scopeMiniA2_192[0] = sin(m_skewing_scopeMiniA2_Angle_Correct[0] * m_calRA);
+	m_skewing_sin_scopeMiniA2_192[1] = sin(m_skewing_scopeMiniA2_Angle_Correct[1] * m_calRA);
+	m_skewing_sin_scopeMiniA2_192[2] = sin(m_skewing_scopeMiniA2_Angle_Correct[2] * m_calRA);
+
+	m_skewing_cos_scopeMiniA2_192[0] = cos(m_skewing_scopeMiniA2_Angle_Correct[0] * m_calRA);
+	m_skewing_cos_scopeMiniA2_192[1] = cos(m_skewing_scopeMiniA2_Angle_Correct[1] * m_calRA);
+	m_skewing_cos_scopeMiniA2_192[2] = cos(m_skewing_scopeMiniA2_Angle_Correct[2] * m_calRA);
+
+		for (int i = 0; i < 64; i++)
+	{
+		double vA = m_verticalChannelAngle_Scope64_A2[i];
+		m_verticalChannelAngle_ScopeMiniA2_cos_vA_RA[i] = cos(vA * m_calRA);
+		m_verticalChannelAngle_ScopeMiniA2_sin_vA_RA[i] = sin(vA * m_calRA);
 	}
 
 	//TSP03-32
@@ -561,6 +611,14 @@ void DecodePackage<PointT>::BeginDecodePackageData()
 		case LT_Duetto:
 			if (packagePtr->m_length == 1348)
 				DecodeDuetto(packagePtr->m_szData);
+			else
+			{
+				USE_EXCEPTION_TIPS(TWException::TWEC_TIPS_NOMATCH_DEVICE, "Lidar type and protocol data do not match!");
+			}
+			break;
+		case LT_ScopeMiniA2_192:
+			if (packagePtr->m_length == 1120)
+				DecodeScopeMiniA2_192(packagePtr->m_szData);
 			else
 			{
 				USE_EXCEPTION_TIPS(TWException::TWEC_TIPS_NOMATCH_DEVICE, "Lidar type and protocol data do not match!");
@@ -1014,6 +1072,128 @@ void DecodePackage<PointT>::UseDecodeScope192(char* udpData, std::vector<TWPoint
 	}
 }
 
+template <typename PointT>
+void DecodePackage<PointT>::UseDecodeScopeMiniA2_192(char* udpData, std::vector<TWPointData>& pointCloud)
+{
+	double horizontalAngle = 0;
+	//face id
+	unsigned short mirror = 0;
+	double x_cal_1 = 0.0;
+	double x_cal_2 = 0.0;
+	double y_cal_1 = 0.0;
+	double y_cal_2 = 0.0;
+	double z_cal_1 = 0.0;
+	double z_cal_2 = 0.0;
+	
+	for (int blocks_num = 0; blocks_num < 8; blocks_num++)
+	{
+		int offset = blocks_num * 140;
+		if (0 == blocks_num || 4 == blocks_num)
+		{
+			//horizontal angle index: 128-131
+			int HextoAngle = FourHexToInt(udpData[offset + 128], udpData[offset + 129], udpData[offset + 130], udpData[offset + 131]);
+			horizontalAngle = HextoAngle  * 0.00001;
+
+			unsigned char  hexMirror = udpData[offset + 136];
+			hexMirror = hexMirror << 2;
+			mirror = hexMirror >> 6;
+
+			//offset angle m_skewing_scopeMiniA2_angle
+			float offsetAngle = 0;
+			unsigned char  hexACount = udpData[offset + 136];
+			hexACount = hexACount << 4;
+			unsigned short uACount = hexACount >> 4;
+			offsetAngle = uACount * 0.02 - 0.15;
+			//calculate 
+			if (mirror < 3 && fabs(m_skewing_scopeMiniA2_Angle_Correct[mirror] - (m_skewing_scopeMiniA2_Angle[mirror] + offsetAngle)) > 0.001)
+			{
+				m_skewing_scopeMiniA2_Angle_Correct[mirror] = m_skewing_scopeMiniA2_Angle[mirror] + offsetAngle;
+				m_skewing_sin_scopeMiniA2_192[mirror] = sin(m_skewing_scopeMiniA2_Angle_Correct[mirror] * m_calRA);
+				m_skewing_cos_scopeMiniA2_192[mirror] = cos(m_skewing_scopeMiniA2_Angle_Correct[mirror] * m_calRA);
+			}
+
+			double hA = 0.5 * (horizontalAngle) * m_calRA;
+			double hA_sin = sin(hA);
+			double hA_cos = cos(hA);
+
+			x_cal_1 = 2.0 * m_skewing_cos_scopeMiniA2_192[mirror] * m_skewing_cos_scopeMiniA2_192[mirror] * hA_cos*hA_cos - 1;
+			x_cal_2 = 2.0 * m_skewing_sin_scopeMiniA2_192[mirror] * m_skewing_cos_scopeMiniA2_192[mirror] * hA_cos;
+
+			y_cal_1 = 2.0 * m_skewing_cos_scopeMiniA2_192[mirror] * m_skewing_cos_scopeMiniA2_192[mirror] * hA_sin * hA_cos;
+			y_cal_2 = 2.0 * m_skewing_sin_scopeMiniA2_192[mirror] * m_skewing_cos_scopeMiniA2_192[mirror] * hA_sin;
+
+			z_cal_1 = 2.0 * m_skewing_sin_scopeMiniA2_192[mirror] * m_skewing_cos_scopeMiniA2_192[mirror] * hA_cos;
+			z_cal_2 = 2.0 * m_skewing_sin_scopeMiniA2_192[mirror] * m_skewing_sin_scopeMiniA2_192[mirror] - 1;
+		}
+
+		//separate index
+		unsigned char  hexSepIndex = udpData[offset + 136];
+		unsigned short sepIndex = hexSepIndex >> 6;
+
+		int seq = 0;
+		while (seq < 16)
+		{
+			//单回波
+			double hexToInt1 = TwoHextoInt(udpData[offset + seq * 8 + 0], udpData[offset + seq * 8 + 1]);
+			double hexPulse1 = TwoHextoInt(udpData[offset + seq * 8 + 2], udpData[offset + seq * 8 + 3]);
+			//计算距离和脉宽值
+			double L_1 = hexToInt1 * m_calSimple;
+			double pulse_1 = hexPulse1 * m_calPulse; 
+
+			//双回波
+			double hexToInt2 = TwoHextoInt(udpData[offset + seq * 8 + 4], udpData[offset + seq * 8 + 5]);
+			double hexPulse2 = TwoHextoInt(udpData[offset + seq * 8 + 6], udpData[offset + seq * 8 + 7]);
+			//计算距离和脉宽值
+			double L_2 = hexToInt2 * m_calSimple;
+			double pulse_2 = hexPulse2 * m_calPulse;
+
+			//通道号
+			int channel = 65 - (16 * (blocks_num >= 4 ? blocks_num - 4 : blocks_num) + seq + 1);
+
+			double cos_vA_RA = m_verticalChannelAngle_ScopeMiniA2_cos_vA_RA[channel - 1];
+			double sin_vA_RA = m_verticalChannelAngle_ScopeMiniA2_sin_vA_RA[channel - 1];
+
+			//echo1
+			{
+				DecodePackage::TWPointData basic_point;
+				basic_point.angle = horizontalAngle;
+				basic_point.mirror = mirror;
+				basic_point.channel = channel;
+
+				basic_point.x = L_1 * (cos_vA_RA * x_cal_1 + sin_vA_RA * x_cal_2);
+				basic_point.y = L_1 * (cos_vA_RA * y_cal_1 + sin_vA_RA * y_cal_2);
+				basic_point.z = -L_1 * (cos_vA_RA * z_cal_1 + sin_vA_RA * z_cal_2);
+				
+				basic_point.echo = 1;
+				basic_point.distance = L_1;
+				basic_point.pulse = pulse_1;
+
+				pointCloud.push_back(std::move(basic_point));
+			}
+
+			//echo2
+			/*
+			{
+				DecodePackage::TWPointData basic_point;
+				basic_point.angle = horizontalAngle;
+				basic_point.mirror = mirror;
+				basic_point.channel = channel;
+
+				basic_point.x = L_2 * (cos_vA_RA * x_cal_1 + sin_vA_RA * x_cal_2);
+				basic_point.y = L_2 * (cos_vA_RA * y_cal_1 + sin_vA_RA * y_cal_2);
+				basic_point.z = -L_2 * (cos_vA_RA * z_cal_1 + sin_vA_RA * z_cal_2);
+
+				basic_point.echo = 2;
+				basic_point.distance = L_2;
+				basic_point.pulse = pulse_2;
+				
+				pointCloud.push_back(std::move(basic_point));
+			}
+			*/
+			seq++;
+		}
+	}
+}
 
 template <typename PointT>
 void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointData>& pointCloud)
@@ -1508,3 +1688,49 @@ void DecodePackage<PointT>::DecodeDuetto(char* udpData)
 	}
 }
 
+template <typename PointT>
+void DecodePackage<PointT>::DecodeScopeMiniA2_192(char* udpData)
+{
+	std::vector<DecodePackage::TWPointData> pointData;
+	pointData.reserve(300);
+
+	UseDecodeScopeMiniA2_192(udpData, pointData);
+
+	int pointSize = pointData.size();
+	for (int i = 0; i < pointSize; i++)
+	{
+		const DecodePackage::TWPointData& oriPoint = pointData[i];
+
+		if (oriPoint.angle < m_startAngle && 0 == oriPoint.mirror && m_pointCloudPtr->Size() != 0)
+		{
+			m_pointCloudPtr->height = 1;
+			m_pointCloudPtr->width = m_pointCloudPtr->Size();
+
+			std::lock_guard<std::mutex> lock(*m_mutex);
+			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
+
+			//create
+			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
+			m_pointCloudPtr->Reserve(10000);
+			continue;
+		}
+
+		if (oriPoint.angle <m_startAngle || oriPoint.angle > m_endAngle) continue;
+
+		if (oriPoint.distance <= 0) continue;
+
+		PointT basic_point;
+		setX(basic_point, static_cast<float>(oriPoint.x));
+		setY(basic_point, static_cast<float>(oriPoint.y));
+		setZ(basic_point, static_cast<float>(oriPoint.z));
+		setIntensity(basic_point, static_cast<float>(oriPoint.pulse));
+		setChannel(basic_point, oriPoint.channel);
+		setAngle(basic_point, static_cast<float>(oriPoint.angle));
+		setEcho(basic_point, oriPoint.echo);
+		setColor(basic_point, static_cast<float>(oriPoint.distance));
+		//setT_sec(basic_point, t_sec);
+		//setT_usec(basic_point, t_usec);
+
+		m_pointCloudPtr->PushBack(std::move(basic_point));
+	}
+}
