@@ -74,11 +74,13 @@ public:
 	*/
 	void PausePcap(bool pause);
 	/*
-	*Set corrected angle value
+	*Set corrected value
 	*/
 	void SetCorrectedAngleToTSP0332(float angle1, float angle2);
 	void SetCorrectedAngleToScope192(float angle1, float angle2, float angle3);
 	void SetCorrectionAngleToScopeMiniA2_192(float angle1, float angle2, float angle3);
+	void SetCorrectionAngleToDuetto(float angle1, float angle2, float angle3);
+	void SetCorrectionMovementToDuetto(float lx, float ly, float lz, float rx, float ry, float rz);
 	void SetMoveAngleToDuetto(float leftAngle, float rightAngle);
 	/*
 	*Register the point cloud callback function.
@@ -155,6 +157,18 @@ void TanwayLidarSDK<PointT>::PausePcap(bool pause)
 {
 	if (m_pcapReaderPtr)
 		m_pcapReaderPtr->PausePcap(pause);
+}
+
+template <typename PointT>
+void TanwayLidarSDK<PointT>::SetCorrectionAngleToDuetto(float angle1, float angle2, float angle3)
+{
+	m_decodePackagePtr->SetCorrectionAngleToDuetto(angle1, angle2, angle3);
+}
+
+template <typename PointT>
+void TanwayLidarSDK<PointT>::SetCorrectionMovementToDuetto(float lx, float ly, float lz, float rx, float ry, float rz)
+{
+	m_decodePackagePtr->SetCorrectionMovementToDuetto(lx, ly, lz, rx, ry, rz);
 }
 
 template <typename PointT>

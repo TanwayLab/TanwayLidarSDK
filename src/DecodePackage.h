@@ -97,7 +97,9 @@ public:
 	void SetCorrectionAngleToTSP0332(float angle1, float angle2);
 	void SetCorrectionAngleToScope192(float angle1, float angle2, float angle3);
 	void SetCorrectionAngleToScopeMiniA2_192(float angle1, float angle2, float angle3);
-	void SetMoveAngleToDuetto(float leftMoveAngle, float rightMoveAngle);
+	void SetCorrectionAngleToDuetto(float angle1, float angle2, float angle3);
+	void SetMoveAngleToDuetto(float angleL, float angleR);
+	void SetCorrectionMovementToDuetto(float lx, float ly, float lz, float rx, float ry, float rz);
 	void SetMutex(std::mutex* mutex){ m_mutex = mutex; }
 
 private:
@@ -153,6 +155,7 @@ protected:
 	//TSP03 32
 	double m_verticalChannelAngle16_cos_vA_RA[16] = { 0.0 };
 	double m_verticalChannelAngle16_sin_vA_RA[16] = { 0.0 };
+	double m_skewing_tsp_Angle[3] = {0.0, -6.0};
 	double m_skewing_sin_tsp[2] = { 0.0 };
 	double m_skewing_cos_tsp[2] = { 0.0 };
 
@@ -164,6 +167,7 @@ protected:
 	};
 	double m_verticalChannelAngle_Scope64_cos_vA_RA[64] = { 0.0 };
 	double m_verticalChannelAngle_Scope64_sin_vA_RA[64] = { 0.0 };
+	double m_skewing_scope_Angle[3] = {0.0, 0.12, 0.24};
 	double m_skewing_sin_scope[3] = { 0.0 };
 	double m_skewing_cos_scope[3] = { 0.0 };
 	double m_rotate_scope_sin = sin(-10.0 * m_calRA);
@@ -177,8 +181,8 @@ protected:
 	};
 	float m_verticalChannelAngle_ScopeMiniA2_cos_vA_RA[64] = { 0.f };
 	float m_verticalChannelAngle_ScopeMiniA2_sin_vA_RA[64] = { 0.f };
-	double m_skewing_scopeMiniA2_Angle[3] = {0.0, 0.12, 0.24};
-	double m_skewing_scopeMiniA2_Angle_Correct[3] = {0.0, 0.12, 0.24};
+	double m_skewing_scopeMiniA2_Angle[3] = {0.0, 0.1, 0.2};
+	double m_skewing_scopeMiniA2_Angle_Correct[3] = {0.0, 0.1, 0.2};
 	double m_skewing_sin_scopeMiniA2_192[3] = { 0.0 };
 	double m_skewing_cos_scopeMiniA2_192[3] = { 0.0 };
 
@@ -195,18 +199,21 @@ protected:
 		-3.51152f, -3.00987f, -2.50823f, -2.00658f, -1.50494f, -1.00329f, -0.50165f, 0.0f,
 		0.501645f, 1.003224f, 1.504673f, 2.005925f, 2.506916f, 3.00758f, 3.507853f, 4.00767f
 	};
-	double m_verticalChannelAngle_Duetto16L_cos_vA_RA[16] = { 0.f };
-	double m_verticalChannelAngle_Duetto16L_sin_vA_RA[16] = { 0.f };
-	double m_verticalChannelAngle_Duetto16R_cos_vA_RA[16] = { 0.f };
-	double m_verticalChannelAngle_Duetto16R_sin_vA_RA[16] = { 0.f };
-	double m_leftMoveAngle = -30.0;
-	double m_rightMoveAngle = 210.0;
-	double m_skewing_sin_duetto[3];
-	double m_skewing_cos_duetto[3];
+	double m_verticalChannelAngle_Duetto16L_cos_vA_RA[16] = { 0 };
+	double m_verticalChannelAngle_Duetto16L_sin_vA_RA[16] = { 0 };
+	double m_verticalChannelAngle_Duetto16R_cos_vA_RA[16] = { 0 };
+	double m_verticalChannelAngle_Duetto16R_sin_vA_RA[16] = { 0 };
+	double m_leftMoveAngle = 30.0;
+	double m_rightMoveAngle = -30.0;
 	double m_rotate_duetto_sinL;
 	double m_rotate_duetto_cosL;
 	double m_rotate_duetto_sinR;
 	double m_rotate_duetto_cosR;
+	double m_skewing_duetto_Angle[3] = {-4.5, 0.0, 4.5};
+	double m_skewing_sin_duetto[3];
+	double m_skewing_cos_duetto[3];
+	double m_correction_movement_L[3] = {0};
+	double m_correction_movement_R[3] = {0};
 
 
 private:
@@ -244,27 +251,19 @@ void DecodePackage<PointT>::RegExceptionCallback(const std::function<void(const 
 }
 
 template <typename PointT>
-void DecodePackage<PointT>::SetMoveAngleToDuetto(float leftMoveAngle, float rightMoveAngle)
-{
-	m_leftMoveAngle = -leftMoveAngle;
-	m_rightMoveAngle = 180.0 + rightMoveAngle;
-
-	m_rotate_duetto_sinL = sin(m_leftMoveAngle * m_calRA);  //-30.0
-	m_rotate_duetto_cosL = cos(m_leftMoveAngle * m_calRA);  //
-	m_rotate_duetto_sinR = sin(m_rightMoveAngle * m_calRA);  //210.0
-	m_rotate_duetto_cosR = cos(m_rightMoveAngle * m_calRA);  //
-}
-
-template <typename PointT>
 void DecodePackage<PointT>::SetCorrectionAngleToScope192(float angle1, float angle2, float angle3)
 {
-	m_skewing_sin_scope[0] = sin(angle1 * m_calRA);
-	m_skewing_sin_scope[1] = sin(angle2 * m_calRA);
-	m_skewing_sin_scope[2] = sin(angle3 * m_calRA);
+	m_skewing_scope_Angle[0] = angle1;
+	m_skewing_scope_Angle[1] = angle2;
+	m_skewing_scope_Angle[2] = angle3;
 
-	m_skewing_cos_scope[0] = cos(angle1 * m_calRA);
-	m_skewing_cos_scope[1] = cos(angle2 * m_calRA);
-	m_skewing_cos_scope[2] = cos(angle3 * m_calRA);
+	m_skewing_sin_scope[0] = sin(m_skewing_scope_Angle[0] * m_calRA);
+	m_skewing_sin_scope[1] = sin(m_skewing_scope_Angle[1] * m_calRA);
+	m_skewing_sin_scope[2] = sin(m_skewing_scope_Angle[2] * m_calRA);
+
+	m_skewing_cos_scope[0] = cos(m_skewing_scope_Angle[0] * m_calRA);
+	m_skewing_cos_scope[1] = cos(m_skewing_scope_Angle[1] * m_calRA);
+	m_skewing_cos_scope[2] = cos(m_skewing_scope_Angle[2] * m_calRA);
 }
 
 template <typename PointT>
@@ -285,15 +284,58 @@ void DecodePackage<PointT>::SetCorrectionAngleToScopeMiniA2_192(float angle1, fl
 	m_skewing_cos_scopeMiniA2_192[1] = cos(angle2 * m_calRA);
 	m_skewing_cos_scopeMiniA2_192[2] = cos(angle3 * m_calRA);
 }
+template <typename PointT>
+void DecodePackage<PointT>::SetCorrectionAngleToDuetto(float angle1, float angle2, float angle3)
+{
+	m_skewing_duetto_Angle[0] = angle1;
+	m_skewing_duetto_Angle[1] = angle2;
+	m_skewing_duetto_Angle[2] = angle3;
+
+	m_skewing_sin_duetto[0] = sin(angle1 * m_calRA);
+	m_skewing_sin_duetto[1] = sin(angle2 * m_calRA);
+	m_skewing_sin_duetto[2] = sin(angle3 * m_calRA);
+	m_skewing_cos_duetto[0] = cos(angle1 * m_calRA);
+	m_skewing_cos_duetto[1] = cos(angle2 * m_calRA);
+	m_skewing_cos_duetto[2] = cos(angle3 * m_calRA);
+}
+
+template <typename PointT>
+void DecodePackage<PointT>::SetMoveAngleToDuetto(float angleL, float angleR)
+{
+	m_leftMoveAngle = angleL;
+	m_rightMoveAngle = angleR;
+
+	m_rotate_duetto_sinL = sin(m_leftMoveAngle * m_calRA);
+	m_rotate_duetto_cosL = cos(m_leftMoveAngle * m_calRA);
+	m_rotate_duetto_sinR = sin(m_rightMoveAngle * m_calRA);
+	m_rotate_duetto_cosR = cos(m_rightMoveAngle * m_calRA);
+}
+
+template <typename PointT>
+void DecodePackage<PointT>::SetCorrectionMovementToDuetto(float lx, float ly, float lz, float rx, float ry, float rz)
+{
+	m_correction_movement_L[0] = lx;
+	m_correction_movement_L[1] = ly;
+	m_correction_movement_L[2] = lz;
+
+	m_correction_movement_R[0] = rx;
+	m_correction_movement_R[1] = ry;
+	m_correction_movement_R[2] = rz;
+
+	std::cout << lx << ly << lz << rx << ry << rz << std::endl;
+}
 
 template <typename PointT>
 void DecodePackage<PointT>::SetCorrectionAngleToTSP0332(float angle1, float angle2)
 {
-	m_skewing_sin_tsp[0] = sin(angle1 * m_calRA);
-	m_skewing_sin_tsp[1] = sin(angle2 * m_calRA);  //-6.0
+	m_skewing_tsp_Angle[0] = angle1;
+	m_skewing_tsp_Angle[1] = angle2;
 
-	m_skewing_cos_tsp[0] = cos(angle1 * m_calRA);
-	m_skewing_cos_tsp[1] = cos(angle2 * m_calRA);
+	m_skewing_sin_tsp[0] = sin(m_skewing_tsp_Angle[0] * m_calRA);
+	m_skewing_sin_tsp[1] = sin(m_skewing_tsp_Angle[1] * m_calRA);  //-6.0
+
+	m_skewing_cos_tsp[0] = cos(m_skewing_tsp_Angle[0] * m_calRA);
+	m_skewing_cos_tsp[1] = cos(m_skewing_tsp_Angle[1] * m_calRA);
 }
 
 template <typename PointT>
@@ -479,7 +521,7 @@ void DecodePackage<PointT>::InitBasicVariables()
 	m_skewing_cos_scopeMiniA2_192[1] = cos(m_skewing_scopeMiniA2_Angle_Correct[1] * m_calRA);
 	m_skewing_cos_scopeMiniA2_192[2] = cos(m_skewing_scopeMiniA2_Angle_Correct[2] * m_calRA);
 
-		for (int i = 0; i < 64; i++)
+	for (int i = 0; i < 64; i++)
 	{
 		double vA = m_verticalChannelAngle_Scope64_A2[i];
 		m_verticalChannelAngle_ScopeMiniA2_cos_vA_RA[i] = cos(vA * m_calRA);
@@ -487,11 +529,11 @@ void DecodePackage<PointT>::InitBasicVariables()
 	}
 
 	//TSP03-32
-	m_skewing_sin_tsp[0] = sin(0.0 * m_calRA);
-	m_skewing_sin_tsp[1] = sin(-6.0 * m_calRA);  //-6.0
+	m_skewing_sin_tsp[0] = sin(m_skewing_tsp_Angle[0] * m_calRA);
+	m_skewing_sin_tsp[1] = sin(m_skewing_tsp_Angle[1] * m_calRA);  //-6.0
 
-	m_skewing_cos_tsp[0] = cos(0.0 * m_calRA);
-	m_skewing_cos_tsp[1] = cos(-6.0 * m_calRA);
+	m_skewing_cos_tsp[0] = cos(m_skewing_tsp_Angle[0] * m_calRA);
+	m_skewing_cos_tsp[1] = cos(m_skewing_tsp_Angle[1] * m_calRA);
 
 	for (int i = 0; i < 16; i++)
 	{
@@ -511,9 +553,9 @@ void DecodePackage<PointT>::InitBasicVariables()
 		m_verticalChannelAngle_Duetto16R_cos_vA_RA[i] = cos(vA_R * m_calRA);
 		m_verticalChannelAngle_Duetto16R_sin_vA_RA[i] = sin(vA_R * m_calRA);
 	}
-	double DuettoA_Elevation = 4.5;
+	double DuettoA_Elevation = -4.5;
 	double DuettoB_Elevation = 0.0;
-	double DuettoC_Elevation = -4.5;
+	double DuettoC_Elevation = 4.5;
 	m_skewing_sin_duetto[0] = sin(DuettoA_Elevation * m_calRA);
 	m_skewing_sin_duetto[1] = sin(DuettoB_Elevation * m_calRA);
 	m_skewing_sin_duetto[2] = sin(DuettoC_Elevation * m_calRA);
@@ -1198,6 +1240,12 @@ void DecodePackage<PointT>::UseDecodeScopeMiniA2_192(char* udpData, std::vector<
 template <typename PointT>
 void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointData>& pointCloud)
 {
+	//机芯旋转角度（γ：参照PDF定义，γ1：左机芯，γ2：右机芯）
+	double sin_gamma1 = m_rotate_duetto_sinL;//sin(30.0 * m_calRA);62963766
+	double cos_gamma1 = m_rotate_duetto_cosL;//cos(30.0 * m_calRA);
+	double sin_gamma2 = m_rotate_duetto_sinR;//sin(-30.0 * m_calRA);
+	double cos_gamma2 = m_rotate_duetto_cosR;//cos(-30.0 * m_calRA);
+
 	for (int blocks_num = 0; blocks_num < 8; blocks_num++)
 	{
 		int offset_block = blocks_num * 164;
@@ -1208,71 +1256,74 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 		unsigned char  hexLOrR = udpData[35 + offset_block];
 		hexLOrR = hexLOrR << 7;
 		unsigned short leftOrRight = hexLOrR >> 7; //0:右；1:左
-												   //mirror
+		//mirror
 		unsigned char  hexMirror = udpData[35 + offset_block];
 		hexMirror = hexMirror << 5;
 		unsigned short mirror = hexMirror >> 6;
+		//转镜俯仰角（δ：参照PDF定义）
+		double cos_delta = m_skewing_cos_duetto[mirror];
+		double sin_delta = m_skewing_sin_duetto[mirror];
+
 
 		//解析
 		for (int seq = 0; seq < 16; seq++)
 		{
 			//2Byte 36-37(index) 水平角度	hexAngle*0.01
+			//2Byte 36-37(index) 水平角度	hexAngle*0.01
 			double hexHorAngle = TwoHextoInt(udpData[36 + offset_block + seq * 10], udpData[37 + offset_block + seq * 10]);
 			double horAngle = hexHorAngle * 0.01;
-
-			double x_cal_1, x_cal_2, y_cal_1, y_cal_2, z_cal_1, z_cal_2;
-			double cos_vA_RA, sin_vA_RA;
-			double m_rotate_duetto_sin, m_rotate_duetto_cos;
-
-			//left
+			
+			//x、y、z对应计算（xyz参照PDF定义）
+			double x_t = 0, y_t = 0, z_t = 0;
+			double x_move = 0, y_move = 0, z_move = 0;
+			//左机芯
 			if (1 == leftOrRight)
 			{
-				double hA = 0.5 * (horAngle - m_leftMoveAngle) * m_calRA;
+				//转镜角度 三角函数计算 （θ：参照PDF定义）
+				double mp_angle = (210.0 - horAngle) *0.5 + 240;
+				double sin_theta = sin(mp_angle * m_calRA);
+				double cos_theta = cos(mp_angle * m_calRA);
 
-				double hA_sin = sin(hA);
-				double hA_cos = cos(hA);
+				x_move = m_correction_movement_L[0];
+				y_move = m_correction_movement_L[1];
+				z_move = m_correction_movement_L[2];
 
-				unsigned short faceIndex = mirror;
-				x_cal_1 = 2.0 * m_skewing_cos_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos*hA_cos - 1;
-				x_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos;
+				//每通道对应出射光线与水平方向夹角，仰为正（β：参照PDF定义）
+				double cos_beta = m_verticalChannelAngle_Duetto16L_cos_vA_RA[seq];
+				double sin_beta = m_verticalChannelAngle_Duetto16L_sin_vA_RA[seq];
 
-				y_cal_1 = 2.0 * m_skewing_cos_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_sin * hA_cos;
-				y_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_sin;
+				x_t = cos_beta * (cos_gamma1*(2 * cos_delta*cos_delta*cos_theta*cos_theta - 1) - sin_gamma1*(2 * cos_delta*cos_delta*sin_theta*cos_theta)) +
+					sin_beta * (-cos_gamma1*(2 * sin_delta*cos_delta*cos_theta) + sin_gamma1*(2 * sin_delta*cos_delta*sin_theta));
 
-				z_cal_1 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos;
-				z_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_sin_duetto[faceIndex] - 1;
+				y_t = cos_beta * (-sin_gamma1*(2 * cos_delta*cos_delta*cos_theta*cos_theta - 1) - cos_gamma1*(2 * cos_delta*cos_delta*sin_theta*cos_theta)) +
+					sin_beta * (sin_gamma1*(2 * sin_delta*cos_delta*cos_theta) + cos_gamma1*(2 * sin_delta*cos_delta*sin_theta));
 
-
-				cos_vA_RA = m_verticalChannelAngle_Duetto16L_cos_vA_RA[seq];
-				sin_vA_RA = m_verticalChannelAngle_Duetto16L_sin_vA_RA[seq];
-
-				m_rotate_duetto_sin = m_rotate_duetto_sinL;
-				m_rotate_duetto_cos = m_rotate_duetto_cosL;
+				z_t = cos_beta*(2 * sin_delta*cos_delta*cos_theta) + sin_beta*(1 - 2 * sin_delta*sin_delta);
 			}
-			else //right
+			else
+			//右机芯
 			{
-				double hA = 0.5 * (horAngle - m_rightMoveAngle) * m_calRA;
+				//转镜角度 三角函数计算 （θ：参照PDF定义）
+				double mp_angle = (210.0 - horAngle) *0.5;
+				double sin_theta = sin(mp_angle * m_calRA);
+				double cos_theta = cos(mp_angle * m_calRA);
 
-				double hA_sin = sin(hA);
-				double hA_cos = cos(hA);
+				x_move = m_correction_movement_R[0];
+				y_move = m_correction_movement_R[1];
+				z_move = m_correction_movement_R[2];
 
-				unsigned short faceIndex = mirror;
-				x_cal_1 = 2.0 * m_skewing_cos_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos*hA_cos - 1;
-				x_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos;
+				//每通道对应出射光线与水平方向夹角，仰为正（β：参照PDF定义）
+				double cos_beta = m_verticalChannelAngle_Duetto16R_cos_vA_RA[seq];
+				double sin_beta = m_verticalChannelAngle_Duetto16R_sin_vA_RA[seq];
 
-				y_cal_1 = 2.0 * m_skewing_cos_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_sin * hA_cos;
-				y_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_sin;
+				x_t = cos_beta * (-cos_gamma2*(2 * cos_delta*cos_delta*cos_theta*cos_theta - 1) + sin_gamma2*(2 * cos_delta*cos_delta*sin_theta*cos_theta)) +
+					sin_beta * (-cos_gamma2*(2 * -sin_delta*cos_delta*cos_theta) + sin_gamma2*(2 * -sin_delta*cos_delta*sin_theta));
 
-				z_cal_1 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_cos_duetto[faceIndex] * hA_cos;
-				z_cal_2 = 2.0 * m_skewing_sin_duetto[faceIndex] * m_skewing_sin_duetto[faceIndex] - 1;
+				y_t = cos_beta * (sin_gamma2*(2 * cos_delta*cos_delta*cos_theta*cos_theta - 1) + cos_gamma2*(2 * cos_delta*cos_delta*sin_theta*cos_theta)) +
+					sin_beta * (sin_gamma2*(2 * -sin_delta*cos_delta*cos_theta) + cos_gamma2*(2 * -sin_delta*cos_delta*sin_theta));
 
-				cos_vA_RA = m_verticalChannelAngle_Duetto16R_cos_vA_RA[seq];
-				sin_vA_RA = m_verticalChannelAngle_Duetto16R_sin_vA_RA[seq];
-
-				m_rotate_duetto_sin = m_rotate_duetto_sinR;
-				m_rotate_duetto_cos = m_rotate_duetto_cosR;
+				z_t = cos_beta*(2 * sin_delta*cos_delta*cos_theta) + sin_beta*(1 - 2 * sin_delta*sin_delta);
 			}
-
 
 			/*
 			//2Byte 38-39(index) 俯仰角度	(hexAngle-9000)*0.01
@@ -1284,7 +1335,7 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 			double hexL1 = TwoHextoInt(udpData[40 + offset_block + seq * 10], udpData[41 + offset_block + seq * 10]);
 			double L_1 = hexL1 * 0.005; //米
 
-			//1Byte 42(index) 回波1强度值/脉宽值 0-255反射强度； hexIntensity*0.125
+			//1Byte 42(index) 回波1强度值/脉宽值 0-255反射强度； hexIntensity*0.125/脉宽
 			unsigned char hexChar1 = udpData[42 + offset_block + seq * 10];
 			unsigned short hexPulse1 = hexChar1;
 			double pulse_1 = hexPulse1 * 0.125;
@@ -1293,50 +1344,38 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 			double hexL2 = TwoHextoInt(udpData[43 + offset_block + seq * 10], udpData[44 + offset_block + seq * 10]);
 			double L_2 = hexL2 * 0.005; //米
 
-			//1Byte 45(index) 回波2强度值/脉宽值 0-255反射强度； hexIntensity*0.125
+										//1Byte 45(index) 回波2强度值/脉宽值 0-255反射强度； hexIntensity*0.125/脉宽
 			unsigned char hexChar2 = udpData[45 + offset_block + seq * 10];
 			unsigned short hexPulse2 = hexChar2;
 			double pulse_2 = hexPulse2 * 0.125;
 
 
+			DecodePackage::TWPointData basic_point;
+			basic_point.angle = horAngle;
+			basic_point.mirror = mirror;
+			basic_point.left_right = leftOrRight;
+			basic_point.channel = 48 * leftOrRight + (abs(mirror - 2) * 16 + (16 - seq));
+
+
 			//echo 1
 			{
-				DecodePackage::TWPointData basic_point;
-				basic_point.angle = horAngle;
-				basic_point.mirror = mirror;
-				basic_point.left_right = leftOrRight;
-				basic_point.channel = 48 * leftOrRight + (abs(mirror - 2) * 16 + (16 - seq));
-
-				double x_tmp = L_1 * (cos_vA_RA * x_cal_1 + sin_vA_RA * x_cal_2);
-				double y_tmp = L_1 * (cos_vA_RA * y_cal_1 + sin_vA_RA * y_cal_2);
-				double z_tmp = -L_1 * (cos_vA_RA * z_cal_1 + sin_vA_RA * z_cal_2);
-				basic_point.x = x_tmp * m_rotate_duetto_cos - y_tmp * m_rotate_duetto_sin;
-				basic_point.y = x_tmp * m_rotate_duetto_sin + y_tmp * m_rotate_duetto_cos;
-				basic_point.z = z_tmp;
+				basic_point.x = L_1 * x_t + x_move;
+				basic_point.y = L_1 * y_t + y_move;
+				basic_point.z = L_1 * z_t + z_move;
 
 				basic_point.distance = L_1;
 				basic_point.pulse = pulse_1;
 				basic_point.echo = 1;
 
 				pointCloud.push_back(std::move(basic_point));
-
 			}
 
 			//echo2
 			/*
 			{
-				DecodePackage::TWPointData basic_point;
-				basic_point.angle = horAngle;
-				basic_point.mirror = mirror;
-				basic_point.left_right = leftOrRight;
-				basic_point.channel = 48 * leftOrRight + (abs(mirror - 2) * 16 + (16 - seq));
-
-				double x_tmp = L_2 * (cos_vA_RA * x_cal_1 + sin_vA_RA * x_cal_2);
-				double y_tmp = L_2 * (cos_vA_RA * y_cal_1 + sin_vA_RA * y_cal_2);
-				double z_tmp = -L_2 * (cos_vA_RA * z_cal_1 + sin_vA_RA * z_cal_2);
-				basic_point.x = x_tmp * m_rotate_duetto_cos - y_tmp * m_rotate_duetto_sin;
-				basic_point.y = x_tmp * m_rotate_duetto_sin + y_tmp * m_rotate_duetto_cos;
-				basic_point.z = z_tmp;
+				basic_point.x = L_2 * x_t + x_move;
+				basic_point.y = L_2 * y_t + y_move;
+				basic_point.z = L_2 * z_t + z_move;
 
 				basic_point.distance = L_2;
 				basic_point.pulse = pulse_2;
