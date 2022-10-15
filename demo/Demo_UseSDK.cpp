@@ -41,6 +41,8 @@ struct PointXYZ
 	float z;
 	int channel;
 	//float intensity;
+	//float angle;
+	//int echo;
 	unsigned int t_sec;         /* The value represents seconds since 1900-01-01 00:00:00 (the UNIX epoch).*/ 
 	unsigned int t_usec;        /* remaining microseconds */
 };

@@ -74,4 +74,4 @@ git clone https://github.com/TanwayLab/TanwayLidarSDK.git
 | v1.0.5 | 2022年04月20日 | 增加Duetto设备的支持；                                       |
 | v1.0.6 | 2022年06月21日 | 修改设备解析模块中的二次解析接口，增加可扩展性；             |
 | v1.0.7 | 2022年09月20日 | 增加ScopeMiniA2-192设备型号的支持；                          |
-
+| v1.0.8 | 2022年10月15日 | 增加Duetto标定参数的接口；<br />修正ScopeMiniA2-192设备默认的组修正角度值； |
