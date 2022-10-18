@@ -120,9 +120,9 @@ private:
 
 
 protected:
-	virtual void UseDecodeTensorPro(char* udpData, std::vector<TWPointData>& pointCloud, unsigned int t_sec, unsigned int t_usec);
-	virtual void UseDecodeTensorPro_echo2(char* udpData, std::vector<TWPointData>& pointCloud, unsigned int t_sec, unsigned int t_usec);
-	virtual void UseDecodeTensorPro0332(char* udpData, std::vector<TWPointData>& pointCloud, unsigned int t_sec, unsigned int t_usec);
+	virtual void UseDecodeTensorPro(char* udpData, std::vector<TWPointData>& pointCloud);
+	virtual void UseDecodeTensorPro_echo2(char* udpData, std::vector<TWPointData>& pointCloud);
+	virtual void UseDecodeTensorPro0332(char* udpData, std::vector<TWPointData>& pointCloud);
 	virtual void UseDecodeScope(char* udpData, std::vector<TWPointData>& pointCloud);
 	virtual void UseDecodeScope192(char* udpData, std::vector<TWPointData>& pointCloud);
 	virtual void UseDecodeScopeMiniA2_192(char* udpData, std::vector<TWPointData>& pointCloud);
@@ -321,8 +321,6 @@ void DecodePackage<PointT>::SetCorrectionMovementToDuetto(float lx, float ly, fl
 	m_correction_movement_R[0] = rx;
 	m_correction_movement_R[1] = ry;
 	m_correction_movement_R[2] = rz;
-
-	std::cout << lx << ly << lz << rx << ry << rz << std::endl;
 }
 
 template <typename PointT>
@@ -679,33 +677,22 @@ void DecodePackage<PointT>::BeginDecodePackageData()
 }
 
 template <typename PointT>
-void DecodePackage<PointT>::UseDecodeTensorPro(char* udpData, std::vector<TWPointData>& pointCloud, unsigned int t_sec, unsigned int t_usec)
+void DecodePackage<PointT>::UseDecodeTensorPro(char* udpData, std::vector<TWPointData>& pointCloud)
 {
 	for (int blocks_num = 0; blocks_num < 20; blocks_num++)
 	{
 		int offset = blocks_num * 72;
 
-		//水平角度
 		unsigned int HextoAngle = FourHexToInt(udpData[offset + 64], udpData[offset + 65], udpData[offset + 66], udpData[offset + 67]);
 		double horizontalAngle = HextoAngle * 0.00001;
 
-		//取出镜面值
+		unsigned char hexBlockMicrosecond = udpData[offset + 68];
+		hexBlockMicrosecond = hexBlockMicrosecond & 0x7F;
+		unsigned int blockMicrosecond = FourHexToInt(hexBlockMicrosecond, udpData[offset + 69], udpData[offset + 70], udpData[offset + 71]);
+
 		unsigned char  hexMirror = udpData[offset + 68];
 		hexMirror = hexMirror >> 7;
 		unsigned short mirror = hexMirror;
-
-		//time of point
-		unsigned int cur_sec = t_sec;
-		unsigned int cur_usec = t_usec;
-		if (t_usec < blocks_num * 29.4) //The time interval between the two columns is 29.4 subtle
-		{
-			cur_sec = cur_sec - 1;
-			cur_usec = (unsigned int)(t_usec + 1000000 - blocks_num * 29.4);
-		}
-		else
-		{
-			cur_usec = (unsigned int)(t_usec - blocks_num * 29.4);
-		}
 
 		int seq = 0;
 		while (seq < 16)
@@ -714,9 +701,8 @@ void DecodePackage<PointT>::UseDecodeTensorPro(char* udpData, std::vector<TWPoin
 			unsigned short  hexPulse = TwoHextoInt(udpData[offset + seq * 4 + 2], udpData[offset + seq * 4 + 3]);
 
 			double L = hexL * m_calSimple;
-			double pulse = hexPulse * m_calPulse; //脉宽
+			double pulse = hexPulse * m_calPulse;
 
-			//计算
 			double cos_hA = cos(horizontalAngle * m_calRA);
 			double sin_hA = sin(horizontalAngle * m_calRA);
 			double vA = m_verticalChannelsAngle_Tensor16[seq];
@@ -734,8 +720,8 @@ void DecodePackage<PointT>::UseDecodeTensorPro(char* udpData, std::vector<TWPoin
 			basic_point.pulse = pulse;
 			basic_point.mirror = mirror;
 			basic_point.echo = 1;
-			basic_point.t_sec = cur_sec;
-			basic_point.t_usec = cur_usec;
+			basic_point.t_sec = 0;
+			basic_point.t_usec = blockMicrosecond;
 
 			pointCloud.push_back(std::move(basic_point));
 
@@ -745,33 +731,22 @@ void DecodePackage<PointT>::UseDecodeTensorPro(char* udpData, std::vector<TWPoin
 }
 
 template <typename PointT>
-void DecodePackage<PointT>::UseDecodeTensorPro_echo2(char* udpData, std::vector<TWPointData>& pointCloud, unsigned int t_sec, unsigned int t_usec)
+void DecodePackage<PointT>::UseDecodeTensorPro_echo2(char* udpData, std::vector<TWPointData>& pointCloud)
 {
 	for (int blocks_num = 0; blocks_num < 20; blocks_num++)
 	{
 		int offset = blocks_num * 72;
 
-		//水平角度
 		unsigned int HextoAngle = FourHexToInt(udpData[offset + 64], udpData[offset + 65], udpData[offset + 66], udpData[offset + 67]);
 		double horizontalAngle = HextoAngle * 0.00001;
 
-		//取出镜面值
+		unsigned char hexBlockMicrosecond = udpData[offset + 68];
+		hexBlockMicrosecond = hexBlockMicrosecond & 0x7F;
+		unsigned int blockMicrosecond = FourHexToInt(hexBlockMicrosecond, udpData[offset + 69], udpData[offset + 70], udpData[offset + 71]);
+
 		unsigned char  hexMirror = udpData[offset + 68];
 		hexMirror = hexMirror >> 7;
 		unsigned short mirror = hexMirror;
-
-		//time of point
-		unsigned int cur_sec = t_sec;
-		unsigned int cur_usec = t_usec;
-		if (t_usec < (int)(blocks_num/2) * 29.4) //The time interval between the two columns is 29.4 subtle
-		{
-			cur_sec = cur_sec - 1;
-			cur_usec = (unsigned int)(t_usec + 1000000 - blocks_num * 29.4);
-		}
-		else
-		{
-			cur_usec = (unsigned int)(t_usec - blocks_num * 29.4);
-		}
 
 		int seq = 0;
 		while (seq < 16)
@@ -780,9 +755,8 @@ void DecodePackage<PointT>::UseDecodeTensorPro_echo2(char* udpData, std::vector<
 			unsigned short  hexPulse = TwoHextoInt(udpData[offset + seq * 4 + 2], udpData[offset + seq * 4 + 3]);
 
 			double L = hexL * m_calSimple;
-			double pulse = hexPulse * m_calPulse; //脉宽
+			double pulse = hexPulse * m_calPulse;
 
-			//计算
 			double cos_hA = cos(horizontalAngle * m_calRA);
 			double sin_hA = sin(horizontalAngle * m_calRA);
 			double vA = m_verticalChannelsAngle_Tensor16[seq];
@@ -800,7 +774,8 @@ void DecodePackage<PointT>::UseDecodeTensorPro_echo2(char* udpData, std::vector<
 			basic_point.pulse = pulse;
 			basic_point.mirror = mirror;
 			basic_point.echo = blocks_num % 2 + 1;
-
+			basic_point.t_sec = 0;
+			basic_point.t_usec = blockMicrosecond;
 			pointCloud.push_back(std::move(basic_point));
 
 			seq++;
@@ -809,25 +784,23 @@ void DecodePackage<PointT>::UseDecodeTensorPro_echo2(char* udpData, std::vector<
 }
 
 template <typename PointT>
-void DecodePackage<PointT>::UseDecodeTensorPro0332(char* udpData, std::vector<TWPointData>& pointCloud, unsigned int t_sec, unsigned int t_usec)
+void DecodePackage<PointT>::UseDecodeTensorPro0332(char* udpData, std::vector<TWPointData>& pointCloud)
 {
-	//处理接收到的数据
-	//解析UDP包
 	for (int blocks_num = 0; blocks_num < 20; blocks_num++)
 	{
 		int offset = blocks_num * 72;
 
-		//水平角度
 		unsigned int HextoAngle = FourHexToInt(udpData[offset + 64], udpData[offset + 65], udpData[offset + 66], udpData[offset + 67]);
 		double horizontalAngle = HextoAngle * 0.00001;
 
-		//取出镜面值
+		unsigned char hexBlockMicrosecond = udpData[offset + 68];
+		hexBlockMicrosecond = hexBlockMicrosecond & 0x7F;
+		unsigned int blockMicrosecond = FourHexToInt(hexBlockMicrosecond, udpData[offset + 69], udpData[offset + 70], udpData[offset + 71]);
+
 		unsigned char  hexMirror = udpData[offset + 68];
 		hexMirror = hexMirror >> 7;
 		unsigned short mirror = hexMirror;
 
-
-		//计算不同镜面的偏移值
 		double hA = 0.5 * horizontalAngle * m_calRA;
 		double hA_sin = sin(hA);
 		double hA_cos = cos(hA);
@@ -842,20 +815,6 @@ void DecodePackage<PointT>::UseDecodeTensorPro0332(char* udpData, std::vector<TW
 		double z_cal_1 = 2.0 * m_skewing_sin_tsp[faceIndex] * m_skewing_cos_tsp[faceIndex] * hA_cos;
 		double z_cal_2 = 2.0 * m_skewing_sin_tsp[faceIndex] * m_skewing_sin_tsp[faceIndex] - 1;
 
-
-		//time of point
-		unsigned int cur_sec = t_sec;
-		unsigned int cur_usec = t_usec;
-		if (t_usec < blocks_num * 29.4) //The time interval between the two columns is 29.4 subtle
-		{
-			cur_sec = cur_sec - 1;
-			cur_usec = (unsigned int)(t_usec + 1000000 - blocks_num * 29.4);
-		}
-		else
-		{
-			cur_usec = (unsigned int)(t_usec - blocks_num * 29.4);
-		}
-
 		int seq = 0;
 		while (seq < 16)
 		{
@@ -865,7 +824,6 @@ void DecodePackage<PointT>::UseDecodeTensorPro0332(char* udpData, std::vector<TW
 			double L = hexL * m_calSimple;
 			double pulse = hexPulse * m_calPulse;
 
-			//计算
 			double cos_vA_RA = m_verticalChannelAngle16_cos_vA_RA[seq];
 			double sin_vA_RA = m_verticalChannelAngle16_sin_vA_RA[seq];
 
@@ -882,8 +840,8 @@ void DecodePackage<PointT>::UseDecodeTensorPro0332(char* udpData, std::vector<TW
 				basic_point.pulse = pulse;
 				basic_point.mirror = mirror;
 				basic_point.echo = 1;
-				basic_point.t_sec = cur_sec;
-				basic_point.t_usec = cur_usec;
+				basic_point.t_sec = 0;
+				basic_point.t_usec = blockMicrosecond;
 				pointCloud.push_back(std::move(basic_point));
 			}
 
@@ -895,30 +853,29 @@ void DecodePackage<PointT>::UseDecodeTensorPro0332(char* udpData, std::vector<TW
 template <typename PointT>
 void DecodePackage<PointT>::UseDecodeScope(char* udpData, std::vector<TWPointData>& pointCloud)
 {
-	//处理接收到的数据
 	double firstSeparateAngle = -1.0;
-	//解析UDP包
+
 	for (int blocks_num = 0; blocks_num < 8; blocks_num++)
 	{
 		int offset_block = blocks_num * 140;
 
-		//角度值 （索引：128-131）  GPS值 （索引：132-135）  预留值（索引：136-139）
 		unsigned int HextoAngle = FourHexToInt(udpData[offset_block + 136 - 8], udpData[offset_block + 136 - 7], udpData[offset_block + 136 - 6], udpData[offset_block + 136 - 5]);
 		double horizontalAngle = HextoAngle  * 0.00001;
 
-		//ABC镜面值
+		unsigned int blockSecond = FourHexToInt(udpData[offset_block + 132], udpData[offset_block + 133], udpData[offset_block + 134], udpData[offset_block + 135]);
+		unsigned char hexBlockMicrosecond = udpData[offset_block + 137];
+		hexBlockMicrosecond = hexBlockMicrosecond & 0x0F;
+		unsigned int blockMicrosecond = FourHexToInt(0x00, hexBlockMicrosecond, udpData[offset_block + 138], udpData[offset_block + 139]);
+
 		unsigned char  hexMirror = udpData[offset_block + 136];
 		hexMirror = hexMirror << 2;
 		unsigned short mirror = hexMirror >> 6;
 
-		//索引拍值
 		unsigned char  hexSepIndex = udpData[offset_block + 136];
 		unsigned short sepIndex = hexSepIndex >> 6;
 
-		//计数值
 		int calIndex = TwoHextoInt(udpData[offset_block + 138], udpData[offset_block + 139]);
 
-		//调整非第一拍的水平角度值和第一拍 一致
 		if (sepIndex == 0)
 			firstSeparateAngle = horizontalAngle;
 		else
@@ -930,30 +887,23 @@ void DecodePackage<PointT>::UseDecodeScope(char* udpData, std::vector<TWPointDat
 		int seq = 0;
 		while (seq < 16)
 		{
-			//单回波
 			double hexToInt1 = TwoHextoInt(udpData[offset_block + seq * 8 + 0], udpData[offset_block + seq * 8 + 1]);
 			double hexPulse1 = TwoHextoInt(udpData[offset_block + seq * 8 + 2], udpData[offset_block + seq * 8 + 3]);
-			//计算距离和脉宽值
 			double L_1 = hexToInt1 * m_calSimple;
 			double pulse_1 = hexPulse1 * m_calPulse;
 
-			//双回波
+
 			double hexToInt2 = TwoHextoInt(udpData[offset_block + seq * 8 + 4], udpData[offset_block + seq * 8 + 5]);
 			double hexPulse2 = TwoHextoInt(udpData[offset_block + seq * 8 + 6], udpData[offset_block + seq * 8 + 7]);
-			//计算距离和脉宽值
 			double L_2 = hexToInt2 * m_calSimple;
 			double pulse_2 = hexPulse2 * m_calPulse; 
 
-
-			//通道号
 			int channel = 65 - (16 * (blocks_num >= 4 ? blocks_num - 4 : blocks_num) + seq + 1);
 
-			//计算
 			double cos_hA = cos(horizontalAngle * m_calRA);
 			double sin_hA = sin(horizontalAngle * m_calRA);
 			double vA = m_verticalChannelAngle_Scope64[channel - 1];
 			double cos_vA_RA = cos(vA * m_calRA);
-
 
 			//echo1
 			{
@@ -971,6 +921,8 @@ void DecodePackage<PointT>::UseDecodeScope(char* udpData, std::vector<TWPointDat
 				basic_point.pulse = pulse_1;
 				basic_point.echo = 1;
 				basic_point.mirror = mirror;
+				basic_point.t_sec = blockSecond;
+				basic_point.t_usec = blockMicrosecond;
 				pointCloud.push_back(std::move(basic_point));
 			}
 
@@ -991,6 +943,8 @@ void DecodePackage<PointT>::UseDecodeScope(char* udpData, std::vector<TWPointDat
 				basic_point.pulse = pulse_1;
 				basic_point.echo = 1;
 				basic_point.mirror = mirror;
+				basic_point.t_sec = blockSecond;
+				basic_point.t_usec = blockMicrosecond;
 				pointCloud.push_back(std::move(basic_point));
 			}
 			*/
@@ -1039,6 +993,11 @@ void DecodePackage<PointT>::UseDecodeScope192(char* udpData, std::vector<TWPoint
 			z_cal_2 = 2.0 * m_skewing_sin_scope[mirror] * m_skewing_sin_scope[mirror] - 1;
 		}
 
+		unsigned int blockSecond = FourHexToInt(udpData[offset + 132], udpData[offset + 133], udpData[offset + 134], udpData[offset + 135]);
+		unsigned char hexBlockMicrosecond = udpData[offset + 137];
+		hexBlockMicrosecond = hexBlockMicrosecond & 0x0F;
+		unsigned int blockMicrosecond = FourHexToInt(0x00, hexBlockMicrosecond, udpData[offset + 138], udpData[offset + 139]);
+
 		//separate index
 		unsigned char  hexSepIndex = udpData[offset + 136];
 		unsigned short sepIndex = hexSepIndex >> 6;
@@ -1046,21 +1005,17 @@ void DecodePackage<PointT>::UseDecodeScope192(char* udpData, std::vector<TWPoint
 		int seq = 0;
 		while (seq < 16)
 		{
-			//单回波
 			double hexToInt1 = TwoHextoInt(udpData[offset + seq * 8 + 0], udpData[offset + seq * 8 + 1]);
 			double hexPulse1 = TwoHextoInt(udpData[offset + seq * 8 + 2], udpData[offset + seq * 8 + 3]);
-			//计算距离和脉宽值
 			double L_1 = hexToInt1 * m_calSimple;
 			double pulse_1 = hexPulse1 * m_calPulse; 
 
-			//双回波
+
 			double hexToInt2 = TwoHextoInt(udpData[offset + seq * 8 + 4], udpData[offset + seq * 8 + 5]);
 			double hexPulse2 = TwoHextoInt(udpData[offset + seq * 8 + 6], udpData[offset + seq * 8 + 7]);
-			//计算距离和脉宽值
 			double L_2 = hexToInt2 * m_calSimple;
 			double pulse_2 = hexPulse2 * m_calPulse;
 
-			//通道号
 			int channel = 65 - (16 * (blocks_num >= 4 ? blocks_num - 4 : blocks_num) + seq + 1);
 
 			double cos_vA_RA = m_verticalChannelAngle_Scope64_cos_vA_RA[channel - 1];
@@ -1083,6 +1038,8 @@ void DecodePackage<PointT>::UseDecodeScope192(char* udpData, std::vector<TWPoint
 				basic_point.echo = 1;
 				basic_point.distance = L_1;
 				basic_point.pulse = pulse_1;
+				basic_point.t_sec = blockSecond;
+				basic_point.t_usec = blockMicrosecond;
 
 				pointCloud.push_back(std::move(basic_point));
 			}
@@ -1105,6 +1062,8 @@ void DecodePackage<PointT>::UseDecodeScope192(char* udpData, std::vector<TWPoint
 				basic_point.echo = 2;
 				basic_point.distance = L_2;
 				basic_point.pulse = pulse_2;
+				basic_point.t_sec = blockSecond;
+				basic_point.t_usec = blockMicrosecond;
 				
 				pointCloud.push_back(std::move(basic_point));
 			}
@@ -1168,6 +1127,11 @@ void DecodePackage<PointT>::UseDecodeScopeMiniA2_192(char* udpData, std::vector<
 			z_cal_2 = 2.0 * m_skewing_sin_scopeMiniA2_192[mirror] * m_skewing_sin_scopeMiniA2_192[mirror] - 1;
 		}
 
+		unsigned int blockSecond = FourHexToInt(udpData[offset + 132], udpData[offset + 133], udpData[offset + 134], udpData[offset + 135]);
+		unsigned char hexBlockMicrosecond = udpData[offset + 137];
+		hexBlockMicrosecond = hexBlockMicrosecond & 0x0F;
+		unsigned int blockMicrosecond = FourHexToInt(0x00, hexBlockMicrosecond, udpData[offset + 138], udpData[offset + 139]);
+
 		//separate index
 		unsigned char  hexSepIndex = udpData[offset + 136];
 		unsigned short sepIndex = hexSepIndex >> 6;
@@ -1175,21 +1139,16 @@ void DecodePackage<PointT>::UseDecodeScopeMiniA2_192(char* udpData, std::vector<
 		int seq = 0;
 		while (seq < 16)
 		{
-			//单回波
 			double hexToInt1 = TwoHextoInt(udpData[offset + seq * 8 + 0], udpData[offset + seq * 8 + 1]);
 			double hexPulse1 = TwoHextoInt(udpData[offset + seq * 8 + 2], udpData[offset + seq * 8 + 3]);
-			//计算距离和脉宽值
 			double L_1 = hexToInt1 * m_calSimple;
 			double pulse_1 = hexPulse1 * m_calPulse; 
 
-			//双回波
 			double hexToInt2 = TwoHextoInt(udpData[offset + seq * 8 + 4], udpData[offset + seq * 8 + 5]);
 			double hexPulse2 = TwoHextoInt(udpData[offset + seq * 8 + 6], udpData[offset + seq * 8 + 7]);
-			//计算距离和脉宽值
 			double L_2 = hexToInt2 * m_calSimple;
 			double pulse_2 = hexPulse2 * m_calPulse;
 
-			//通道号
 			int channel = 65 - (16 * (blocks_num >= 4 ? blocks_num - 4 : blocks_num) + seq + 1);
 
 			double cos_vA_RA = m_verticalChannelAngle_ScopeMiniA2_cos_vA_RA[channel - 1];
@@ -1209,6 +1168,8 @@ void DecodePackage<PointT>::UseDecodeScopeMiniA2_192(char* udpData, std::vector<
 				basic_point.echo = 1;
 				basic_point.distance = L_1;
 				basic_point.pulse = pulse_1;
+				basic_point.t_sec = blockSecond;
+				basic_point.t_usec = blockMicrosecond;
 
 				pointCloud.push_back(std::move(basic_point));
 			}
@@ -1228,6 +1189,8 @@ void DecodePackage<PointT>::UseDecodeScopeMiniA2_192(char* udpData, std::vector<
 				basic_point.echo = 2;
 				basic_point.distance = L_2;
 				basic_point.pulse = pulse_2;
+				basic_point.t_sec = blockSecond;
+				basic_point.t_usec = blockMicrosecond;
 				
 				pointCloud.push_back(std::move(basic_point));
 			}
@@ -1240,18 +1203,24 @@ void DecodePackage<PointT>::UseDecodeScopeMiniA2_192(char* udpData, std::vector<
 template <typename PointT>
 void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointData>& pointCloud)
 {
-	//机芯旋转角度（γ：参照PDF定义，γ1：左机芯，γ2：右机芯）
-	double sin_gamma1 = m_rotate_duetto_sinL;//sin(30.0 * m_calRA);62963766
-	double cos_gamma1 = m_rotate_duetto_cosL;//cos(30.0 * m_calRA);
-	double sin_gamma2 = m_rotate_duetto_sinR;//sin(-30.0 * m_calRA);
-	double cos_gamma2 = m_rotate_duetto_cosR;//cos(-30.0 * m_calRA);
+	//ptp
+	unsigned int frameSecond = FourHexToInt(udpData[13], udpData[14], udpData[15], udpData[16]);
+	double frameMicrosecond = FourHexToInt(udpData[17], udpData[18], udpData[19], udpData[20]) * 0.1;
+
+	double sin_gamma1 = m_rotate_duetto_sinL;
+	double cos_gamma1 = m_rotate_duetto_cosL;
+	double sin_gamma2 = m_rotate_duetto_sinR;
+	double cos_gamma2 = m_rotate_duetto_cosR;
 
 	for (int blocks_num = 0; blocks_num < 8; blocks_num++)
 	{
 		int offset_block = blocks_num * 164;
 
-		//2Byte 32-33(index) 时间偏移
-		//2Byte 34-35(index) 标识 低Byte：bit0:0右/1左机芯；bit1-2:0A/1B/2C镜面值
+		int offsetMicrosecond = TwoHextoInt(32 + offset_block, 33 + offset_block);
+		double totalMicrosecond = frameMicrosecond + offsetMicrosecond;
+		unsigned int blockSecond = (totalMicrosecond >= 1000000)? (frameSecond+1) : frameSecond;
+		unsigned int blockMicrosecond = (totalMicrosecond >= 1000000)? (totalMicrosecond - 1000000) : totalMicrosecond;
+
 		//L/R
 		unsigned char  hexLOrR = udpData[35 + offset_block];
 		hexLOrR = hexLOrR << 7;
@@ -1260,26 +1229,22 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 		unsigned char  hexMirror = udpData[35 + offset_block];
 		hexMirror = hexMirror << 5;
 		unsigned short mirror = hexMirror >> 6;
-		//转镜俯仰角（δ：参照PDF定义）
+		//
 		double cos_delta = m_skewing_cos_duetto[mirror];
 		double sin_delta = m_skewing_sin_duetto[mirror];
 
 
-		//解析
 		for (int seq = 0; seq < 16; seq++)
 		{
-			//2Byte 36-37(index) 水平角度	hexAngle*0.01
-			//2Byte 36-37(index) 水平角度	hexAngle*0.01
 			double hexHorAngle = TwoHextoInt(udpData[36 + offset_block + seq * 10], udpData[37 + offset_block + seq * 10]);
 			double horAngle = hexHorAngle * 0.01;
 			
-			//x、y、z对应计算（xyz参照PDF定义）
+			//x、y、z
 			double x_t = 0, y_t = 0, z_t = 0;
 			double x_move = 0, y_move = 0, z_move = 0;
-			//左机芯
+			//
 			if (1 == leftOrRight)
 			{
-				//转镜角度 三角函数计算 （θ：参照PDF定义）
 				double mp_angle = (210.0 - horAngle) *0.5 + 240;
 				double sin_theta = sin(mp_angle * m_calRA);
 				double cos_theta = cos(mp_angle * m_calRA);
@@ -1288,7 +1253,6 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 				y_move = m_correction_movement_L[1];
 				z_move = m_correction_movement_L[2];
 
-				//每通道对应出射光线与水平方向夹角，仰为正（β：参照PDF定义）
 				double cos_beta = m_verticalChannelAngle_Duetto16L_cos_vA_RA[seq];
 				double sin_beta = m_verticalChannelAngle_Duetto16L_sin_vA_RA[seq];
 
@@ -1301,9 +1265,7 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 				z_t = cos_beta*(2 * sin_delta*cos_delta*cos_theta) + sin_beta*(1 - 2 * sin_delta*sin_delta);
 			}
 			else
-			//右机芯
 			{
-				//转镜角度 三角函数计算 （θ：参照PDF定义）
 				double mp_angle = (210.0 - horAngle) *0.5;
 				double sin_theta = sin(mp_angle * m_calRA);
 				double cos_theta = cos(mp_angle * m_calRA);
@@ -1312,7 +1274,6 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 				y_move = m_correction_movement_R[1];
 				z_move = m_correction_movement_R[2];
 
-				//每通道对应出射光线与水平方向夹角，仰为正（β：参照PDF定义）
 				double cos_beta = m_verticalChannelAngle_Duetto16R_cos_vA_RA[seq];
 				double sin_beta = m_verticalChannelAngle_Duetto16R_sin_vA_RA[seq];
 
@@ -1325,26 +1286,14 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 				z_t = cos_beta*(2 * sin_delta*cos_delta*cos_theta) + sin_beta*(1 - 2 * sin_delta*sin_delta);
 			}
 
-			/*
-			//2Byte 38-39(index) 俯仰角度	(hexAngle-9000)*0.01
-			double hexVerAngle = TwoHextoInt(udpData[38 + offset_block + seq * 10 + 0], udpData[39 + offset_block + seq * 10 + 1]);
-			double verAngle = hexVerAngle * 0.01;
-			*/
-
-			//2Byte 40-41(index) 回波1距离值 hexL1*0.005
 			double hexL1 = TwoHextoInt(udpData[40 + offset_block + seq * 10], udpData[41 + offset_block + seq * 10]);
-			double L_1 = hexL1 * 0.005; //米
-
-			//1Byte 42(index) 回波1强度值/脉宽值 0-255反射强度； hexIntensity*0.125/脉宽
+			double L_1 = hexL1 * 0.005;
 			unsigned char hexChar1 = udpData[42 + offset_block + seq * 10];
 			unsigned short hexPulse1 = hexChar1;
 			double pulse_1 = hexPulse1 * 0.125;
 
-			//2Byte 43-44(index) 回波2距离值 hexL2*0.005
 			double hexL2 = TwoHextoInt(udpData[43 + offset_block + seq * 10], udpData[44 + offset_block + seq * 10]);
 			double L_2 = hexL2 * 0.005; //米
-
-										//1Byte 45(index) 回波2强度值/脉宽值 0-255反射强度； hexIntensity*0.125/脉宽
 			unsigned char hexChar2 = udpData[45 + offset_block + seq * 10];
 			unsigned short hexPulse2 = hexChar2;
 			double pulse_2 = hexPulse2 * 0.125;
@@ -1366,6 +1315,8 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 				basic_point.distance = L_1;
 				basic_point.pulse = pulse_1;
 				basic_point.echo = 1;
+				basic_point.t_sec = blockSecond;
+				basic_point.t_usec = blockMicrosecond;
 
 				pointCloud.push_back(std::move(basic_point));
 			}
@@ -1380,6 +1331,8 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 				basic_point.distance = L_2;
 				basic_point.pulse = pulse_2;
 				basic_point.echo = 2;
+				basic_point.t_sec = blockSecond;
+				basic_point.t_usec = blockMicrosecond;
 
 				pointCloud.push_back(std::move(basic_point));
 			}
@@ -1448,7 +1401,7 @@ void DecodePackage<PointT>::DecodeTensorPro(char* udpData, unsigned int t_sec, u
 	std::vector<DecodePackage::TWPointData> pointData;
 	pointData.reserve(300);
 
-	UseDecodeTensorPro(udpData, pointData, t_sec, t_usec);
+	UseDecodeTensorPro(udpData, pointData);
 
 	int pointSize = pointData.size();
 	for (int i = 0; i < pointSize; i++)
@@ -1470,7 +1423,7 @@ void DecodePackage<PointT>::DecodeTensorPro(char* udpData, unsigned int t_sec, u
 			continue;
 		}
 
-		if (oriPoint.angle <m_startAngle || oriPoint.angle > m_endAngle) continue;
+		if (oriPoint.angle < m_startAngle || oriPoint.angle > m_endAngle) continue;
 
 		if (oriPoint.distance <= 0) continue;
 
@@ -1496,7 +1449,7 @@ void DecodePackage<PointT>::DecodeTensorPro_echo2(char* udpData, unsigned int t_
 	std::vector<DecodePackage::TWPointData> pointData;
 	pointData.reserve(300);
 
-	UseDecodeTensorPro_echo2(udpData, pointData, t_sec, t_usec);
+	UseDecodeTensorPro_echo2(udpData, pointData);
 
 	int pointSize = pointData.size();
 	for (int i = 0; i < pointSize; i++)
@@ -1544,7 +1497,7 @@ void DecodePackage<PointT>::DecodeTensorPro0332(char* udpData, unsigned int t_se
 	std::vector<DecodePackage::TWPointData> pointData;
 	pointData.reserve(300);
 
-	UseDecodeTensorPro0332(udpData, pointData, t_sec, t_usec);
+	UseDecodeTensorPro0332(udpData, pointData);
 
 	int pointSize = pointData.size();
 	for (int i = 0; i < pointSize; i++)
