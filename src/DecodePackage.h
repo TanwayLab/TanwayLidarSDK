@@ -1217,7 +1217,7 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 		int offset_block = blocks_num * 164;
 
 		int offsetMicrosecond = TwoHextoInt(32 + offset_block, 33 + offset_block);
-		double totalMicrosecond = frameMicrosecond + offsetMicrosecond;
+		double totalMicrosecond = frameMicrosecond + offsetMicrosecond*0.1;
 		unsigned int blockSecond = (totalMicrosecond >= 1000000)? (frameSecond+1) : frameSecond;
 		unsigned int blockMicrosecond = (totalMicrosecond >= 1000000)? (totalMicrosecond - 1000000) : totalMicrosecond;
 
