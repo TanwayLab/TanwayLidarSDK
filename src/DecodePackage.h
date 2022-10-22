@@ -1412,7 +1412,7 @@ void DecodePackage<PointT>::DecodeTensorPro(char* udpData, unsigned int t_sec, u
 		{
 			m_pointCloudPtr->height = 1;
 			m_pointCloudPtr->width = m_pointCloudPtr->Size();
-			m_pointCloudPtr->stamp = (uint64_t)t_sec * 1000 * 1000 + t_usec;
+			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
 			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
@@ -1436,8 +1436,8 @@ void DecodePackage<PointT>::DecodeTensorPro(char* udpData, unsigned int t_sec, u
 		setAngle(basic_point, static_cast<float>(oriPoint.angle));
 		setEcho(basic_point, oriPoint.echo);
 		setColor(basic_point, static_cast<float>(oriPoint.distance));
-		setT_sec(basic_point, t_sec);
-		setT_usec(basic_point, t_usec);
+		setT_sec(basic_point, oriPoint.t_sec);
+		setT_usec(basic_point, oriPoint.t_usec);
 
 		m_pointCloudPtr->PushBack(std::move(basic_point));
 	}
@@ -1460,7 +1460,7 @@ void DecodePackage<PointT>::DecodeTensorPro_echo2(char* udpData, unsigned int t_
 		{
 			m_pointCloudPtr->height = 1;
 			m_pointCloudPtr->width = m_pointCloudPtr->Size();
-			m_pointCloudPtr->stamp = (uint64_t)t_sec * 1000 * 1000 + t_usec;
+			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
 			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
@@ -1484,8 +1484,8 @@ void DecodePackage<PointT>::DecodeTensorPro_echo2(char* udpData, unsigned int t_
 		setAngle(basic_point, static_cast<float>(oriPoint.angle));
 		setEcho(basic_point, oriPoint.echo);
 		setColor(basic_point, static_cast<float>(oriPoint.distance));
-		setT_sec(basic_point, t_sec);
-		setT_usec(basic_point, t_usec);
+		setT_sec(basic_point, oriPoint.t_sec);
+		setT_usec(basic_point, oriPoint.t_usec);
 
 		m_pointCloudPtr->PushBack(std::move(basic_point));
 	}
@@ -1508,7 +1508,7 @@ void DecodePackage<PointT>::DecodeTensorPro0332(char* udpData, unsigned int t_se
 		{
 			m_pointCloudPtr->height = 1;
 			m_pointCloudPtr->width = m_pointCloudPtr->Size();
-			m_pointCloudPtr->stamp = (uint64_t)t_sec * 1000 * 1000 + t_usec;
+			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
 			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
@@ -1532,8 +1532,8 @@ void DecodePackage<PointT>::DecodeTensorPro0332(char* udpData, unsigned int t_se
 		setAngle(basic_point, static_cast<float>(oriPoint.angle));
 		setEcho(basic_point, oriPoint.echo);
 		setColor(basic_point, static_cast<float>(oriPoint.distance));
-		setT_sec(basic_point, t_sec);
-		setT_usec(basic_point, t_usec);
+		setT_sec(basic_point, oriPoint.t_sec);
+		setT_usec(basic_point, oriPoint.t_usec);
 
 		m_pointCloudPtr->PushBack(std::move(basic_point));
 	}
@@ -1556,6 +1556,7 @@ void DecodePackage<PointT>::DecodeScope(char* udpData)
 		{
 			m_pointCloudPtr->height = 1;
 			m_pointCloudPtr->width = m_pointCloudPtr->Size();
+			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
 			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
@@ -1579,8 +1580,8 @@ void DecodePackage<PointT>::DecodeScope(char* udpData)
 		setAngle(basic_point, static_cast<float>(oriPoint.angle));
 		setEcho(basic_point, oriPoint.echo);
 		setColor(basic_point, static_cast<float>(oriPoint.distance));
-		//setT_sec(basic_point, t_sec);
-		//setT_usec(basic_point, t_usec);
+		setT_sec(basic_point, oriPoint.t_sec);
+		setT_usec(basic_point, oriPoint.t_usec);
 
 		m_pointCloudPtr->PushBack(std::move(basic_point));
 	}
@@ -1603,6 +1604,7 @@ void DecodePackage<PointT>::DecodeScope192(char* udpData)
 		{
 			m_pointCloudPtr->height = 1;
 			m_pointCloudPtr->width = m_pointCloudPtr->Size();
+			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
 			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
@@ -1626,8 +1628,8 @@ void DecodePackage<PointT>::DecodeScope192(char* udpData)
 		setAngle(basic_point, static_cast<float>(oriPoint.angle));
 		setEcho(basic_point, oriPoint.echo);
 		setColor(basic_point, static_cast<float>(oriPoint.distance));
-		//setT_sec(basic_point, t_sec);
-		//setT_usec(basic_point, t_usec);
+		setT_sec(basic_point, oriPoint.t_sec);
+		setT_usec(basic_point, oriPoint.t_usec);
 
 		m_pointCloudPtr->PushBack(std::move(basic_point));
 	}
@@ -1650,6 +1652,7 @@ void DecodePackage<PointT>::DecodeDuetto(char* udpData)
 		{
 			m_pointCloudPtr->height = 1;
 			m_pointCloudPtr->width = m_pointCloudPtr->Size();
+			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
 			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
@@ -1673,8 +1676,8 @@ void DecodePackage<PointT>::DecodeDuetto(char* udpData)
 		setAngle(basic_point, static_cast<float>(oriPoint.angle));
 		setEcho(basic_point, oriPoint.echo);
 		setColor(basic_point, static_cast<float>(oriPoint.distance));
-		//setT_sec(basic_point, t_sec);
-		//setT_usec(basic_point, t_usec);
+		setT_sec(basic_point, oriPoint.t_sec);
+		setT_usec(basic_point, oriPoint.t_usec);
 
 		m_pointCloudPtr->PushBack(std::move(basic_point));
 	}
@@ -1697,6 +1700,7 @@ void DecodePackage<PointT>::DecodeScopeMiniA2_192(char* udpData)
 		{
 			m_pointCloudPtr->height = 1;
 			m_pointCloudPtr->width = m_pointCloudPtr->Size();
+			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
 			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
@@ -1720,8 +1724,8 @@ void DecodePackage<PointT>::DecodeScopeMiniA2_192(char* udpData)
 		setAngle(basic_point, static_cast<float>(oriPoint.angle));
 		setEcho(basic_point, oriPoint.echo);
 		setColor(basic_point, static_cast<float>(oriPoint.distance));
-		//setT_sec(basic_point, t_sec);
-		//setT_usec(basic_point, t_usec);
+		setT_sec(basic_point, oriPoint.t_sec);
+		setT_usec(basic_point, oriPoint.t_usec);
 
 		m_pointCloudPtr->PushBack(std::move(basic_point));
 	}
