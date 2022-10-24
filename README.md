@@ -30,7 +30,7 @@ git clone https://github.com/TanwayLab/TanwayLidarSDK.git
 
 - ##### 连接实时的雷达设备
 
-  定义SDK实例对象，其中PointXYZ为自定义的点结构体类型。如果安装了pcl库或ROS系统可直接使用pcl::XYZ或pcl::XYZI点结构体，然后将雷达IP地址、本机IP、数据接收端口、雷达型号作为参数。
+  定义SDK实例对象，其中PointXYZ为自定义的点结构体类型。结构体可以扩展的参数在demo/Demo_UseSDK.cpp中有定义，可根据实际需要释放/注释所需的点属性。如果安装了pcl库或ROS系统可直接使用pcl::XYZ或pcl::XYZI点结构体或基于pcl的扩展点，属性名称定义须参照demo/Demo_UseSDK.cpp中点结构体定义。最后将雷达IP地址、本机IP、数据接收端口、雷达型号作为参数。
 
   ```
   TanwayLidarSDK<PointXYZ> lidar("192.168.111.51", "192.168.111.204", 5600, LT_TensorPro);
@@ -44,7 +44,7 @@ git clone https://github.com/TanwayLab/TanwayLidarSDK.git
   lidar.RegExceptionCallback(exceptionCallback);
   ```
 
-  启动实例，此时如果雷达正常连接将可以在上面的回调函数中获取到相应的数据。
+  启动实例，此时如果雷达正常连接将可以在上面的回调函数中获取到相应的数据。 
 
   ```
   lidar.Start();
@@ -77,3 +77,4 @@ git clone https://github.com/TanwayLab/TanwayLidarSDK.git
 | v1.0.8  | 2022年10月15日 | 增加Duetto标定参数的接口；<br />修正ScopeMiniA2-192设备默认的组修正角度值； |
 | v1.0.9  | 2022年10月18日 | 增加所有设备的ptp同步后的时间解析，对每个点增加时间信息；    |
 | v1.0.10 | 2022年10月22日 | 修复部分设备型号的ptp时间值错误的bug，修复整帧点云的时间值与ptp时间值不同步问题； |
+| v1.0.11 | 2022年10月24日 | 修复Deutto微秒解析问题，增加Duetto的block属性值；            |

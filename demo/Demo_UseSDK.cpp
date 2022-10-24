@@ -32,17 +32,18 @@
 */
 
 #include "../TanwayLidarSDK.h"
-
+ 
 //point struct
 struct PointXYZ
 {
 	float x;
 	float y;
 	float z;
-	int channel;
-	//float intensity;
+	float intensity;
+	//int channel;
 	//float angle;
 	//int echo;
+	//int block;				/*For duetto*/
 	unsigned int t_sec;         /* The value represents seconds since 1900-01-01 00:00:00 (the UNIX epoch).*/ 
 	unsigned int t_usec;        /* remaining microseconds */
 };
