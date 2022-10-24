@@ -55,6 +55,7 @@ MemberCheck(echo)
 MemberCheck(sepIndex)
 MemberCheck(faceIndex)
 MemberCheck(color)
+MemberCheck(block)
 MemberCheck(t_sec)
 MemberCheck(t_usec)
 
@@ -78,6 +79,7 @@ protected:
 		int echo = 1;
 		int mirror = 0;
 		int left_right = 0;
+		int block = 0;
 		unsigned int t_sec = 0;
 		unsigned int t_usec = 0;
 	}TWPointData;
@@ -134,6 +136,7 @@ protected:
 protected:
 	int FourHexToInt(unsigned char high, unsigned char highmiddle, unsigned char middle, unsigned char low);
 	int TwoHextoInt(unsigned char high, unsigned char low);
+	int GetDuettoBlockNumber(double angle, int mirror, int lORr);
 
 public:
 	double m_startAngle = 30.0;
@@ -144,6 +147,8 @@ protected:
 	double m_calRA = (float)(3.14159265f / 180.0f);
 	double m_calPulse = 0.004577 / 0.15;
 	double m_calSimple = 500 * 2.997924 / 10.f / 16384.f / 2;
+
+	int m_blockNumberForDuetto[6] = {1/*RA*/, 2001/*RB*/, 4001/*RC*/, 3001/*LA*/, 5001/*LB*/, 1001/*LC*/ };
 
 	//Tensor
 	double m_verticalChannelsAngle_Tensor16[16] =
@@ -337,6 +342,25 @@ void DecodePackage<PointT>::SetCorrectionAngleToTSP0332(float angle1, float angl
 }
 
 template <typename PointT>
+int DecodePackage<PointT>::GetDuettoBlockNumber(double angle, int mirror, int lORr)
+{
+	if (angle < m_startAngle && 1 == mirror) 
+	{
+		m_blockNumberForDuetto[0] = 1; 		//RA 1-1000
+		m_blockNumberForDuetto[1] = 2001; 	//RB
+		m_blockNumberForDuetto[2] = 4001; 	//RC
+		m_blockNumberForDuetto[3] = 3001; 	//LA
+		m_blockNumberForDuetto[4] = 5001; 	//LB
+		m_blockNumberForDuetto[5] = 1001; 	//LC
+		return 0;
+	}
+	else
+	{
+		return m_blockNumberForDuetto[mirror + lORr*3]++;
+	}
+}
+
+template <typename PointT>
 int DecodePackage<PointT>::TwoHextoInt(unsigned char high, unsigned char low)
 {
 	int addr = low & 0xFF;
@@ -442,6 +466,17 @@ template <typename PointT>
 inline typename std::enable_if<PointT_HasMember(PointT, color)>::type setColor(PointT& point, const float& value)
 {
 	point.color = value;
+}
+
+template <typename PointT>
+inline typename std::enable_if<!PointT_HasMember(PointT, block)>::type setBlock(PointT& point, const int& value)
+{
+}
+
+template <typename PointT>
+inline typename std::enable_if<PointT_HasMember(PointT, block)>::type setBlock(PointT& point, const int& value)
+{
+	point.block = value;
 }
 
 template <typename PointT>
@@ -787,7 +822,7 @@ template <typename PointT>
 void DecodePackage<PointT>::UseDecodeTensorPro0332(char* udpData, std::vector<TWPointData>& pointCloud)
 {
 	for (int blocks_num = 0; blocks_num < 20; blocks_num++)
-	{
+	{ 
 		int offset = blocks_num * 72;
 
 		unsigned int HextoAngle = FourHexToInt(udpData[offset + 64], udpData[offset + 65], udpData[offset + 66], udpData[offset + 67]);
@@ -1216,7 +1251,7 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 	{
 		int offset_block = blocks_num * 164;
 
-		int offsetMicrosecond = TwoHextoInt(32 + offset_block, 33 + offset_block);
+		int offsetMicrosecond = TwoHextoInt(udpData[32 + offset_block], udpData[33 + offset_block]);
 		double totalMicrosecond = frameMicrosecond + offsetMicrosecond*0.1;
 		unsigned int blockSecond = (totalMicrosecond >= 1000000)? (frameSecond+1) : frameSecond;
 		unsigned int blockMicrosecond = (totalMicrosecond >= 1000000)? (totalMicrosecond - 1000000) : totalMicrosecond;
@@ -1229,10 +1264,13 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 		unsigned char  hexMirror = udpData[35 + offset_block];
 		hexMirror = hexMirror << 5;
 		unsigned short mirror = hexMirror >> 6;
+		//block 
+		double hexBlockAngle = TwoHextoInt(udpData[36 + offset_block + 0 * 10], udpData[37 + offset_block + 0 * 10]);
+		double blockAngle = hexBlockAngle * 0.01;
+		int block = GetDuettoBlockNumber(blockAngle, mirror, leftOrRight);
 		//
 		double cos_delta = m_skewing_cos_duetto[mirror];
 		double sin_delta = m_skewing_sin_duetto[mirror];
-
 
 		for (int seq = 0; seq < 16; seq++)
 		{
@@ -1304,7 +1342,7 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 			basic_point.mirror = mirror;
 			basic_point.left_right = leftOrRight;
 			basic_point.channel = 48 * leftOrRight + (abs(mirror - 2) * 16 + (16 - seq));
-
+			basic_point.block = block;
 
 			//echo 1
 			{
@@ -1676,9 +1714,10 @@ void DecodePackage<PointT>::DecodeDuetto(char* udpData)
 		setAngle(basic_point, static_cast<float>(oriPoint.angle));
 		setEcho(basic_point, oriPoint.echo);
 		setColor(basic_point, static_cast<float>(oriPoint.distance));
+		setBlock(basic_point, oriPoint.block);
 		setT_sec(basic_point, oriPoint.t_sec);
 		setT_usec(basic_point, oriPoint.t_usec);
-
+		
 		m_pointCloudPtr->PushBack(std::move(basic_point));
 	}
 }
