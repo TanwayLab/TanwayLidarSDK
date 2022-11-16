@@ -172,7 +172,8 @@ protected:
 	};
 	double m_verticalChannelAngle_Scope64_cos_vA_RA[64] = { 0.0 };
 	double m_verticalChannelAngle_Scope64_sin_vA_RA[64] = { 0.0 };
-	double m_skewing_scope_Angle[3] = {0.0, 0.12, 0.24};
+	double m_skewing_scope_Angle[3] = {-0.0, -0.12, -0.24};
+	double m_skewing_scope_Angle_Correct[3] = {-0.0, -0.12, -0.24};
 	double m_skewing_sin_scope[3] = { 0.0 };
 	double m_skewing_cos_scope[3] = { 0.0 };
 	double m_rotate_scope_sin = sin(-10.0 * m_calRA);
@@ -261,6 +262,10 @@ void DecodePackage<PointT>::SetCorrectionAngleToScope192(float angle1, float ang
 	m_skewing_scope_Angle[0] = angle1;
 	m_skewing_scope_Angle[1] = angle2;
 	m_skewing_scope_Angle[2] = angle3;
+
+	m_skewing_scope_Angle_Correct[0] = angle1;
+	m_skewing_scope_Angle_Correct[1] = angle2;
+	m_skewing_scope_Angle_Correct[2] = angle3;
 
 	m_skewing_sin_scope[0] = sin(m_skewing_scope_Angle[0] * m_calRA);
 	m_skewing_sin_scope[1] = sin(m_skewing_scope_Angle[1] * m_calRA);
@@ -530,13 +535,13 @@ void DecodePackage<PointT>::InitBasicVariables()
 	run_exit.store(false);
 
 	//Scope-192
-	m_skewing_sin_scope[0] = sin(0.0 * m_calRA);
-	m_skewing_sin_scope[1] = sin(0.12 * m_calRA);
-	m_skewing_sin_scope[2] = sin(0.24 * m_calRA);
+	m_skewing_sin_scope[0] = sin(m_skewing_scope_Angle_Correct[0] * m_calRA);
+	m_skewing_sin_scope[1] = sin(m_skewing_scope_Angle_Correct[1] * m_calRA);
+	m_skewing_sin_scope[2] = sin(m_skewing_scope_Angle_Correct[2] * m_calRA);
 
-	m_skewing_cos_scope[0] = cos(0.0 * m_calRA);
-	m_skewing_cos_scope[1] = cos(0.12 * m_calRA);
-	m_skewing_cos_scope[2] = cos(0.24 * m_calRA);
+	m_skewing_cos_scope[0] = cos(m_skewing_scope_Angle_Correct[0] * m_calRA);
+	m_skewing_cos_scope[1] = cos(m_skewing_scope_Angle_Correct[1] * m_calRA);
+	m_skewing_cos_scope[2] = cos(m_skewing_scope_Angle_Correct[2] * m_calRA);
 
 	for (int i = 0; i < 64; i++)
 	{
@@ -1018,6 +1023,20 @@ void DecodePackage<PointT>::UseDecodeScope192(char* udpData, std::vector<TWPoint
 			double hA_sin = sin(hA);
 			double hA_cos = cos(hA);
 
+			float offsetAngle = 0;
+			unsigned char  hexACount = udpData[offset + 136];
+			hexACount = hexACount << 4;
+			unsigned short uACount = hexACount >> 4;
+			offsetAngle = uACount * 0.04 - 0.3;
+
+			//calculate 
+			if (mirror < 3 && fabs(m_skewing_scope_Angle_Correct[mirror] - (m_skewing_scope_Angle[mirror] + offsetAngle)) > 0.001)
+			{
+				m_skewing_scope_Angle_Correct[mirror] = m_skewing_scope_Angle[mirror] + offsetAngle;
+				m_skewing_sin_scope[mirror] = sin(-1.0 * m_skewing_scope_Angle_Correct[mirror] * m_calRA);
+				m_skewing_cos_scope[mirror] = cos(-1.0 * m_skewing_scope_Angle_Correct[mirror] * m_calRA);
+			}
+
 			x_cal_1 = 2.0 * m_skewing_cos_scope[mirror] * m_skewing_cos_scope[mirror] * hA_cos*hA_cos - 1;
 			x_cal_2 = 2.0 * m_skewing_sin_scope[mirror] * m_skewing_cos_scope[mirror] * hA_cos;
 
@@ -1450,7 +1469,6 @@ void DecodePackage<PointT>::DecodeTensorPro(char* udpData, unsigned int t_sec, u
 		{
 			m_pointCloudPtr->height = 1;
 			m_pointCloudPtr->width = m_pointCloudPtr->Size();
-			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
 			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
@@ -1458,6 +1476,7 @@ void DecodePackage<PointT>::DecodeTensorPro(char* udpData, unsigned int t_sec, u
 			//create
 			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
 			m_pointCloudPtr->Reserve(10000);
+			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 			continue;
 		}
 
@@ -1498,7 +1517,6 @@ void DecodePackage<PointT>::DecodeTensorPro_echo2(char* udpData, unsigned int t_
 		{
 			m_pointCloudPtr->height = 1;
 			m_pointCloudPtr->width = m_pointCloudPtr->Size();
-			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
 			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
@@ -1506,6 +1524,7 @@ void DecodePackage<PointT>::DecodeTensorPro_echo2(char* udpData, unsigned int t_
 			//create
 			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
 			m_pointCloudPtr->Reserve(10000);
+			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 			continue;
 		}
 
@@ -1546,7 +1565,6 @@ void DecodePackage<PointT>::DecodeTensorPro0332(char* udpData, unsigned int t_se
 		{
 			m_pointCloudPtr->height = 1;
 			m_pointCloudPtr->width = m_pointCloudPtr->Size();
-			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
 			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
@@ -1554,6 +1572,7 @@ void DecodePackage<PointT>::DecodeTensorPro0332(char* udpData, unsigned int t_se
 			//create
 			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
 			m_pointCloudPtr->Reserve(10000);
+			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 			continue;
 		}
 
@@ -1594,7 +1613,6 @@ void DecodePackage<PointT>::DecodeScope(char* udpData)
 		{
 			m_pointCloudPtr->height = 1;
 			m_pointCloudPtr->width = m_pointCloudPtr->Size();
-			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
 			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
@@ -1602,6 +1620,7 @@ void DecodePackage<PointT>::DecodeScope(char* udpData)
 			//create
 			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
 			m_pointCloudPtr->Reserve(10000);
+			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 			continue;
 		}
 
@@ -1642,7 +1661,6 @@ void DecodePackage<PointT>::DecodeScope192(char* udpData)
 		{
 			m_pointCloudPtr->height = 1;
 			m_pointCloudPtr->width = m_pointCloudPtr->Size();
-			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
 			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
@@ -1650,6 +1668,7 @@ void DecodePackage<PointT>::DecodeScope192(char* udpData)
 			//create
 			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
 			m_pointCloudPtr->Reserve(10000);
+			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 			continue;
 		}
 
@@ -1690,7 +1709,6 @@ void DecodePackage<PointT>::DecodeDuetto(char* udpData)
 		{
 			m_pointCloudPtr->height = 1;
 			m_pointCloudPtr->width = m_pointCloudPtr->Size();
-			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
 			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
@@ -1698,6 +1716,7 @@ void DecodePackage<PointT>::DecodeDuetto(char* udpData)
 			//create
 			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
 			m_pointCloudPtr->Reserve(10000);
+			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 			continue;
 		}
 
@@ -1739,7 +1758,6 @@ void DecodePackage<PointT>::DecodeScopeMiniA2_192(char* udpData)
 		{
 			m_pointCloudPtr->height = 1;
 			m_pointCloudPtr->width = m_pointCloudPtr->Size();
-			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
 			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
@@ -1747,6 +1765,7 @@ void DecodePackage<PointT>::DecodeScopeMiniA2_192(char* udpData)
 			//create
 			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
 			m_pointCloudPtr->Reserve(10000);
+			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 			continue;
 		}
 
