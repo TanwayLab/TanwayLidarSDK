@@ -1469,6 +1469,9 @@ void DecodePackage<PointT>::DecodeTensorPro(char* udpData, unsigned int t_sec, u
 		{
 			m_pointCloudPtr->height = 1;
 			m_pointCloudPtr->width = m_pointCloudPtr->Size();
+			unsigned int last_sec = m_pointCloudPtr->m_pointData[m_pointCloudPtr->width - 1].t_sec;
+			unsigned int last_usec = m_pointCloudPtr->m_pointData[m_pointCloudPtr->width - 1].t_usec;
+			m_pointCloudPtr->stamp = (uint64_t)(last_sec) * 1000 * 1000 + last_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
 			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
@@ -1476,7 +1479,6 @@ void DecodePackage<PointT>::DecodeTensorPro(char* udpData, unsigned int t_sec, u
 			//create
 			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
 			m_pointCloudPtr->Reserve(10000);
-			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 			continue;
 		}
 
@@ -1517,6 +1519,9 @@ void DecodePackage<PointT>::DecodeTensorPro_echo2(char* udpData, unsigned int t_
 		{
 			m_pointCloudPtr->height = 1;
 			m_pointCloudPtr->width = m_pointCloudPtr->Size();
+			unsigned int last_sec = m_pointCloudPtr->m_pointData[m_pointCloudPtr->width - 1].t_sec;
+			unsigned int last_usec = m_pointCloudPtr->m_pointData[m_pointCloudPtr->width - 1].t_usec;
+			m_pointCloudPtr->stamp = (uint64_t)(last_sec) * 1000 * 1000 + last_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
 			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
@@ -1524,7 +1529,6 @@ void DecodePackage<PointT>::DecodeTensorPro_echo2(char* udpData, unsigned int t_
 			//create
 			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
 			m_pointCloudPtr->Reserve(10000);
-			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 			continue;
 		}
 
@@ -1565,6 +1569,9 @@ void DecodePackage<PointT>::DecodeTensorPro0332(char* udpData, unsigned int t_se
 		{
 			m_pointCloudPtr->height = 1;
 			m_pointCloudPtr->width = m_pointCloudPtr->Size();
+			unsigned int last_sec = m_pointCloudPtr->m_pointData[m_pointCloudPtr->width - 1].t_sec;
+			unsigned int last_usec = m_pointCloudPtr->m_pointData[m_pointCloudPtr->width - 1].t_usec;
+			m_pointCloudPtr->stamp = (uint64_t)(last_sec) * 1000 * 1000 + last_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
 			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
@@ -1572,7 +1579,6 @@ void DecodePackage<PointT>::DecodeTensorPro0332(char* udpData, unsigned int t_se
 			//create
 			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
 			m_pointCloudPtr->Reserve(10000);
-			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 			continue;
 		}
 
@@ -1613,6 +1619,9 @@ void DecodePackage<PointT>::DecodeScope(char* udpData)
 		{
 			m_pointCloudPtr->height = 1;
 			m_pointCloudPtr->width = m_pointCloudPtr->Size();
+			unsigned int last_sec = m_pointCloudPtr->m_pointData[m_pointCloudPtr->width - 1].t_sec;
+			unsigned int last_usec = m_pointCloudPtr->m_pointData[m_pointCloudPtr->width - 1].t_usec;
+			m_pointCloudPtr->stamp = (uint64_t)(last_sec) * 1000 * 1000 + last_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
 			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
@@ -1620,7 +1629,6 @@ void DecodePackage<PointT>::DecodeScope(char* udpData)
 			//create
 			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
 			m_pointCloudPtr->Reserve(10000);
-			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 			continue;
 		}
 
@@ -1661,6 +1669,9 @@ void DecodePackage<PointT>::DecodeScope192(char* udpData)
 		{
 			m_pointCloudPtr->height = 1;
 			m_pointCloudPtr->width = m_pointCloudPtr->Size();
+			unsigned int last_sec = m_pointCloudPtr->m_pointData[m_pointCloudPtr->width - 1].t_sec;
+			unsigned int last_usec = m_pointCloudPtr->m_pointData[m_pointCloudPtr->width - 1].t_usec;
+			m_pointCloudPtr->stamp = (uint64_t)(last_sec) * 1000 * 1000 + last_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
 			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
@@ -1668,7 +1679,6 @@ void DecodePackage<PointT>::DecodeScope192(char* udpData)
 			//create
 			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
 			m_pointCloudPtr->Reserve(10000);
-			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 			continue;
 		}
 
@@ -1709,6 +1719,9 @@ void DecodePackage<PointT>::DecodeDuetto(char* udpData)
 		{
 			m_pointCloudPtr->height = 1;
 			m_pointCloudPtr->width = m_pointCloudPtr->Size();
+			unsigned int last_sec = m_pointCloudPtr->m_pointData[m_pointCloudPtr->width - 1].t_sec;
+			unsigned int last_usec = m_pointCloudPtr->m_pointData[m_pointCloudPtr->width - 1].t_usec;
+			m_pointCloudPtr->stamp = (uint64_t)(last_sec) * 1000 * 1000 + last_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
 			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
@@ -1716,7 +1729,6 @@ void DecodePackage<PointT>::DecodeDuetto(char* udpData)
 			//create
 			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
 			m_pointCloudPtr->Reserve(10000);
-			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 			continue;
 		}
 
@@ -1758,6 +1770,9 @@ void DecodePackage<PointT>::DecodeScopeMiniA2_192(char* udpData)
 		{
 			m_pointCloudPtr->height = 1;
 			m_pointCloudPtr->width = m_pointCloudPtr->Size();
+			unsigned int last_sec = m_pointCloudPtr->m_pointData[m_pointCloudPtr->width - 1].t_sec;
+			unsigned int last_usec = m_pointCloudPtr->m_pointData[m_pointCloudPtr->width - 1].t_usec;
+			m_pointCloudPtr->stamp = (uint64_t)(last_sec) * 1000 * 1000 + last_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
 			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
@@ -1765,7 +1780,6 @@ void DecodePackage<PointT>::DecodeScopeMiniA2_192(char* udpData)
 			//create
 			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
 			m_pointCloudPtr->Reserve(10000);
-			m_pointCloudPtr->stamp = (uint64_t)(oriPoint.t_sec) * 1000 * 1000 + oriPoint.t_usec;
 			continue;
 		}
 
