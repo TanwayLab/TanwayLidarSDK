@@ -1158,7 +1158,8 @@ void DecodePackage<PointT>::UseDecodeScopeMiniA2_192(char* udpData, std::vector<
 			unsigned char  hexACount = udpData[offset + 136];
 			hexACount = hexACount << 4;
 			unsigned short uACount = hexACount >> 4;
-			offsetAngle = uACount * 0.02 - 0.15;
+			offsetAngle = uACount * 0.04 - 0.3;
+
 			//calculate 
 			if (mirror < 3 && fabs(m_skewing_scopeMiniA2_Angle_Correct[mirror] - (m_skewing_scopeMiniA2_Angle[mirror] + offsetAngle)) > 0.001)
 			{
