@@ -64,6 +64,10 @@ public:
 		TWEC_ERROR_SOCKET_RECV_POINT = 0x08,		///The point cloud socket received failed and will exit!
 		TWEC_ERROR_SOCKET_RECV_GPS = 0x09,			///The gps socket received failed and will exit!
 
+		TWEC_ERROR_CREATE_SOCKET_DIF = 0x10,		///Create dif socket error!
+		TWEC_ERROR_BIND_DIF = 0x11,					///Bind port for dif socket error!
+		TWEC_ERROR_SETOPT_TIMEOUT_DIF = 0x12,		///Failed to set dif socket timeout!
+		TWEC_ERROR_SOCKET_RECV_DIF = 0x13,			///The dif socket received failed and will exit!
 
 		TWEC_ERROR_OPEN_PCAP_FAILED = 0x51,			///Open pcap file failed!
 		TWEC_ERROR_PCAP_FILE_INVALID = 0x52,		///The pcap file is invalid!
@@ -76,7 +80,8 @@ public:
 		TWEC_TIPS_EXIT_POINT = 0x03,		///The point cloud data receiver thread has exited!
 		TWEC_TIPS_EXIT_GPS = 0x04,			///The gps data receiver thread has exited!
 		TWEC_TIPS_EXIT_DECODE = 0x05,		///The decode package thread has exited!
-
+		TWEC_TIPS_TIMEOUT_DIF = 0x06,		///Receive dif data time out!
+		TWEC_TIPS_EXIT_DIF = 0x07,			///The dif data receiver thread has exited!
 
 		TWEC_TIPS_OPEN_PCAP_SUCCESS = 0x51,	///Open pcap file successed!
 		TWEC_TIPS_PCAP_EXIT = 0x52,			///Exit reading the PCAP file!
