@@ -1471,7 +1471,7 @@ void DecodePackage<PointT>::DecodeDIFData(char* udpData)
 	int hexPivotVectorX = TwoHextoInt(udpData[508 + 4 * 48 + 0], udpData[508 + 4 * 48 + 1]);
 	int hexPivotVectorY = TwoHextoInt(udpData[508 + 4 * 48 + 2], udpData[508 + 4 * 48 + 3]);
 	int hexPivotVectorZ = TwoHextoInt(udpData[508 + 4 * 49 + 2], udpData[508 + 4 * 49 + 3]);
-	float pivotVectorX = (hexPivotVectorX - 32768) * 0.0001;-
+	float pivotVectorX = (hexPivotVectorX - 32768) * 0.0001;
 	float pivotVectorY = (hexPivotVectorY - 32768) * 0.0001;
 	float pivotVectorZ = (hexPivotVectorZ - 32768) * 0.0001;
 
