@@ -86,7 +86,31 @@ int main()
 	*Real-time connection using lidar. 
 	*If you have PCL installed, you can also use the point type 'pcl::PointXYZI' like this 'TanwayLidarSDK<pcl::PointXYZI> lidar';
 	*/
-	TanwayLidarSDK<PointXYZ> lidar("192.168.111.51", "192.168.111.204", 5600, LT_TensorPro);
+
+
+	//example:TensorPro
+	//TanwayLidarSDK<PointXYZ> lidar("192.168.111.51", "192.168.111.204", 5600, 0, LT_TensorPro);
+	//lidar.RegPointCloudCallback(pointCloudCallback);
+	//lidar.RegGPSCallback(gpsCallback);
+	//lidar.RegExceptionCallback(exceptionCallback);
+	//lidar.Start();
+
+	//example:LT_TSP0332
+	//TanwayLidarSDK<PointXYZ> lidar("192.168.111.51", "192.168.111.204", 5600, 0, LT_TSP0332);
+	//lidar.RegPointCloudCallback(pointCloudCallback);
+	//lidar.RegGPSCallback(gpsCallback);
+	//lidar.RegExceptionCallback(exceptionCallback);
+	//lidar.Start();
+
+	//example:LT_Scope
+	//TanwayLidarSDK<PointXYZ> lidar("192.168.111.51", "192.168.111.204", 5600, 0, LT_Scope);
+	//lidar.RegPointCloudCallback(pointCloudCallback);
+	//lidar.RegGPSCallback(gpsCallback);
+	//lidar.RegExceptionCallback(exceptionCallback);
+	//lidar.Start();
+
+	//example:Duetto
+	TanwayLidarSDK<PointXYZ> lidar("192.168.111.51", "192.168.111.204", 5600, 5700, LT_Duetto);
 	lidar.RegPointCloudCallback(pointCloudCallback);
 	lidar.RegGPSCallback(gpsCallback);
 	lidar.RegExceptionCallback(exceptionCallback);
@@ -95,7 +119,7 @@ int main()
 	/*
 	*using pcap file to replay.
 	*/
-	//TanwayLidarSDK<PointXYZ> lidar("E:/record/tensor.pcap", "192.168.111.51", 5600, LT_TensorPro, true);
+	//TanwayLidarSDK<PointXYZ> lidar("E:/record/tensor.pcap", "192.168.111.51", 5600, 0, LT_TensorPro, true);
 	//lidar.RegPointCloudCallback(pointCloudCallback);
 	//lidar.RegGPSCallback(gpsCallback);
 	//lidar.RegExceptionCallback(exceptionCallback);

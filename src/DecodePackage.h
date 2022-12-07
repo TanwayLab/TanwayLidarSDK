@@ -99,9 +99,6 @@ public:
 	void SetCorrectionAngleToTSP0332(float angle1, float angle2);
 	void SetCorrectionAngleToScope192(float angle1, float angle2, float angle3);
 	void SetCorrectionAngleToScopeMiniA2_192(float angle1, float angle2, float angle3);
-	void SetCorrectionAngleToDuetto(float angle1, float angle2, float angle3);
-	void SetMoveAngleToDuetto(float angleL, float angleR);
-	void SetCorrectionMovementToDuetto(float lx, float ly, float lz, float rx, float ry, float rz);
 	void SetMutex(std::mutex* mutex){ m_mutex = mutex; }
 
 private:
@@ -120,6 +117,8 @@ private:
 
 	void DecodeGPSData(char* udpData);	//decode gps date
 
+	void DecodeDIFData(char* udpData);
+
 
 protected:
 	virtual void UseDecodeTensorPro(char* udpData, std::vector<TWPointData>& pointCloud);
@@ -130,13 +129,14 @@ protected:
 	virtual void UseDecodeScopeMiniA2_192(char* udpData, std::vector<TWPointData>& pointCloud);
 	virtual void UseDecodeDuetto(char* udpData, std::vector<TWPointData>& pointCloud);
 
-
 	virtual void ProcessPointCloud(){};
 
 protected:
 	int FourHexToInt(unsigned char high, unsigned char highmiddle, unsigned char middle, unsigned char low);
 	int TwoHextoInt(unsigned char high, unsigned char low);
 	int GetDuettoBlockNumber(double angle, int mirror, int lORr);
+	bool IsEqualityFloat3(const double value1, const double value2);
+	bool IsEqualityFloat5(const double value1, const double value2);
 
 public:
 	double m_startAngle = 30.0;
@@ -210,7 +210,7 @@ protected:
 	double m_verticalChannelAngle_Duetto16R_cos_vA_RA[16] = { 0 };
 	double m_verticalChannelAngle_Duetto16R_sin_vA_RA[16] = { 0 };
 	double m_leftMoveAngle = 30.0;
-	double m_rightMoveAngle = -30.0;
+	double m_rightMoveAngle = 30.0;
 	double m_rotate_duetto_sinL;
 	double m_rotate_duetto_cosL;
 	double m_rotate_duetto_sinR;
@@ -218,8 +218,9 @@ protected:
 	double m_skewing_duetto_Angle[3] = {-4.5, 0.0, 4.5};
 	double m_skewing_sin_duetto[3];
 	double m_skewing_cos_duetto[3];
-	double m_correction_movement_L[3] = {0};
-	double m_correction_movement_R[3] = {0};
+	double duettoPivotVector[3] = {0, 0, 1};
+	double m_correction_movement_L[3] = {0.017, 0, 0};
+	double m_correction_movement_R[3] = {-0.017, 0, 0};
 
 
 private:
@@ -294,44 +295,6 @@ void DecodePackage<PointT>::SetCorrectionAngleToScopeMiniA2_192(float angle1, fl
 	m_skewing_cos_scopeMiniA2_192[1] = cos(angle2 * m_calRA);
 	m_skewing_cos_scopeMiniA2_192[2] = cos(angle3 * m_calRA);
 }
-template <typename PointT>
-void DecodePackage<PointT>::SetCorrectionAngleToDuetto(float angle1, float angle2, float angle3)
-{
-	m_skewing_duetto_Angle[0] = angle1;
-	m_skewing_duetto_Angle[1] = angle2;
-	m_skewing_duetto_Angle[2] = angle3;
-
-	m_skewing_sin_duetto[0] = sin(angle1 * m_calRA);
-	m_skewing_sin_duetto[1] = sin(angle2 * m_calRA);
-	m_skewing_sin_duetto[2] = sin(angle3 * m_calRA);
-	m_skewing_cos_duetto[0] = cos(angle1 * m_calRA);
-	m_skewing_cos_duetto[1] = cos(angle2 * m_calRA);
-	m_skewing_cos_duetto[2] = cos(angle3 * m_calRA);
-}
-
-template <typename PointT>
-void DecodePackage<PointT>::SetMoveAngleToDuetto(float angleL, float angleR)
-{
-	m_leftMoveAngle = angleL;
-	m_rightMoveAngle = angleR;
-
-	m_rotate_duetto_sinL = sin(m_leftMoveAngle * m_calRA);
-	m_rotate_duetto_cosL = cos(m_leftMoveAngle * m_calRA);
-	m_rotate_duetto_sinR = sin(m_rightMoveAngle * m_calRA);
-	m_rotate_duetto_cosR = cos(m_rightMoveAngle * m_calRA);
-}
-
-template <typename PointT>
-void DecodePackage<PointT>::SetCorrectionMovementToDuetto(float lx, float ly, float lz, float rx, float ry, float rz)
-{
-	m_correction_movement_L[0] = lx;
-	m_correction_movement_L[1] = ly;
-	m_correction_movement_L[2] = lz;
-
-	m_correction_movement_R[0] = rx;
-	m_correction_movement_R[1] = ry;
-	m_correction_movement_R[2] = rz;
-}
 
 template <typename PointT>
 void DecodePackage<PointT>::SetCorrectionAngleToTSP0332(float angle1, float angle2)
@@ -382,6 +345,19 @@ int DecodePackage<PointT>::FourHexToInt(unsigned char high, unsigned char highmi
 	addr |= ((high << 24) & 0xFF000000);
 	return addr;
 }
+
+template <typename PointT>
+bool DecodePackage<PointT>::IsEqualityFloat3(const double value1, const double value2)
+{
+	return fabs(value1 - value2) < 0.001;
+}
+
+template <typename PointT>
+bool DecodePackage<PointT>::IsEqualityFloat5(const double value1, const double value2)
+{
+	return fabs(value1 - value2) < 0.00001;
+}
+
 
 template <typename PointT>
 inline typename std::enable_if<!PointT_HasMember(PointT, x)>::type setX(PointT& point, const float& value)
@@ -691,6 +667,8 @@ void DecodePackage<PointT>::BeginDecodePackageData()
 		case LT_Duetto:
 			if (packagePtr->m_length == 1348)
 				DecodeDuetto(packagePtr->m_szData);
+			else if (packagePtr->m_length == 1024)
+				DecodeDIFData(packagePtr->m_szData);
 			else
 			{
 				USE_EXCEPTION_TIPS(TWException::TWEC_TIPS_NOMATCH_DEVICE, "Lidar type and protocol data do not match!");
@@ -1153,7 +1131,7 @@ void DecodePackage<PointT>::UseDecodeScopeMiniA2_192(char* udpData, std::vector<
 			hexMirror = hexMirror << 2;
 			mirror = hexMirror >> 6;
 
-			//offset angle m_skewing_scopeMiniA2_angle
+			//offset angle m_skewing_scopeMiniA2_angle 
 			float offsetAngle = 0;
 			unsigned char  hexACount = udpData[offset + 136];
 			hexACount = hexACount << 4;
@@ -1267,6 +1245,10 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 	double sin_gamma2 = m_rotate_duetto_sinR;
 	double cos_gamma2 = m_rotate_duetto_cosR;
 
+	double nx = duettoPivotVector[0];
+	double ny = duettoPivotVector[1];
+	double nz = duettoPivotVector[2];
+
 	for (int blocks_num = 0; blocks_num < 8; blocks_num++)
 	{
 		int offset_block = blocks_num * 164;
@@ -1314,13 +1296,23 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 				double cos_beta = m_verticalChannelAngle_Duetto16L_cos_vA_RA[seq];
 				double sin_beta = m_verticalChannelAngle_Duetto16L_sin_vA_RA[seq];
 
-				x_t = cos_beta * (cos_gamma1*(2 * cos_delta*cos_delta*cos_theta*cos_theta - 1) - sin_gamma1*(2 * cos_delta*cos_delta*sin_theta*cos_theta)) +
-					sin_beta * (-cos_gamma1*(2 * sin_delta*cos_delta*cos_theta) + sin_gamma1*(2 * sin_delta*cos_delta*sin_theta));
+				double Tr11 = nx * nx * (1 - cos_theta) + cos_theta;
+				double Tr12 = nx * ny * (1 - cos_theta) + nz * sin_theta;
+				double Tr13 = nx * nz * (1 - cos_theta) - ny * sin_theta;
+				double Tr21 = nx * ny * (1 - cos_theta) - nz * sin_theta;
+				double Tr22 = ny * ny * (1 - cos_theta) + cos_theta;
+				double Tr23 = ny * nz * (1 - cos_theta) + nx * sin_theta;
+				double Tr31 = nx * nz * (1 - cos_theta) + ny * sin_theta;
+				double Tr32 = ny * nz * (1 - cos_theta) - nx * sin_theta;
+				double Tr33 = nz * nz * (1 - cos_theta) + cos_theta;
 
-				y_t = cos_beta * (-sin_gamma1*(2 * cos_delta*cos_delta*cos_theta*cos_theta - 1) - cos_gamma1*(2 * cos_delta*cos_delta*sin_theta*cos_theta)) +
-					sin_beta * (sin_gamma1*(2 * sin_delta*cos_delta*cos_theta) + cos_gamma1*(2 * sin_delta*cos_delta*sin_theta));
+				double Nx = cos_delta * cos_gamma1 * Tr11 - cos_delta * sin_gamma1 * Tr12 + sin_delta * Tr13;
+				double Ny = cos_delta * cos_gamma1 * Tr21 - cos_delta * sin_gamma1 * Tr22 + sin_delta * Tr23;
+				double Nz = cos_delta * cos_gamma1 * Tr31 - cos_delta * sin_gamma1 * Tr32 + sin_delta * Tr33;
 
-				z_t = cos_beta*(2 * sin_delta*cos_delta*cos_theta) + sin_beta*(1 - 2 * sin_delta*sin_delta);
+				x_t = cos_beta * (-cos_gamma1 + 2 * cos_gamma1 * Nx * Nx - 2 * sin_gamma1 * Nx * Ny) - sin_beta * (2 * Nx * Nz);
+				y_t = cos_beta * (sin_gamma1 + 2 * cos_gamma1 * Nx * Ny - 2 * sin_gamma1 * Ny * Ny) - sin_beta * (2 * Ny * Nz);
+				z_t = cos_beta * (2 * cos_gamma1 * Nx * Nz - 2 * sin_gamma1 * Ny * Nz) + sin_beta * (1 - 2 * Nz * Nz);
 			}
 			else
 			{
@@ -1335,13 +1327,23 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 				double cos_beta = m_verticalChannelAngle_Duetto16R_cos_vA_RA[seq];
 				double sin_beta = m_verticalChannelAngle_Duetto16R_sin_vA_RA[seq];
 
-				x_t = cos_beta * (-cos_gamma2*(2 * cos_delta*cos_delta*cos_theta*cos_theta - 1) + sin_gamma2*(2 * cos_delta*cos_delta*sin_theta*cos_theta)) +
-					sin_beta * (-cos_gamma2*(2 * -sin_delta*cos_delta*cos_theta) + sin_gamma2*(2 * -sin_delta*cos_delta*sin_theta));
+				double Tr11 = nx * nx * (1 - cos_theta) + cos_theta;
+				double Tr12 = nx * ny * (1 - cos_theta) + nz * sin_theta;
+				double Tr13 = nx * nz * (1 - cos_theta) - ny * sin_theta;
+				double Tr21 = nx * ny * (1 - cos_theta) - nz * sin_theta;
+				double Tr22 = ny * ny * (1 - cos_theta) + cos_theta;
+				double Tr23 = ny * nz * (1 - cos_theta) + nx * sin_theta;
+				double Tr31 = nx * nz * (1 - cos_theta) + ny * sin_theta;
+				double Tr32 = ny * nz * (1 - cos_theta) - nx * sin_theta;
+				double Tr33 = nz * nz * (1 - cos_theta) + cos_theta;
 
-				y_t = cos_beta * (sin_gamma2*(2 * cos_delta*cos_delta*cos_theta*cos_theta - 1) + cos_gamma2*(2 * cos_delta*cos_delta*sin_theta*cos_theta)) +
-					sin_beta * (sin_gamma2*(2 * -sin_delta*cos_delta*cos_theta) + cos_gamma2*(2 * -sin_delta*cos_delta*sin_theta));
+				double Nx = cos_delta * cos_gamma2 * Tr11 + cos_delta * sin_gamma2 * Tr12 - sin_delta * Tr13;
+				double Ny = cos_delta * cos_gamma2 * Tr21 + cos_delta * sin_gamma2 * Tr22 - sin_delta * Tr23;
+				double Nz = cos_delta * cos_gamma2 * Tr31 + cos_delta * sin_gamma2 * Tr32 - sin_delta * Tr33;
 
-				z_t = cos_beta*(2 * sin_delta*cos_delta*cos_theta) + sin_beta*(1 - 2 * sin_delta*sin_delta);
+				x_t = cos_beta * (cos_gamma2 - 2 * cos_gamma2 * Nx * Nx - 2 * sin_gamma2 * Nx * Ny) - sin_beta * (2 * Nx * Nz);
+				y_t = cos_beta * (sin_gamma2 - 2 * cos_gamma2 * Nx * Ny - 2 * sin_gamma2 * Ny * Ny) - sin_beta * (2 * Ny * Nz);
+				z_t = -cos_beta * (2 * cos_gamma2 * Nx * Nz + 2 * sin_gamma2 * Ny * Nz) + sin_beta * (1 - 2 * Nz * Nz);
 			}
 
 			double hexL1 = TwoHextoInt(udpData[40 + offset_block + seq * 10], udpData[41 + offset_block + seq * 10]);
@@ -1445,6 +1447,86 @@ void DecodePackage<PointT>::DecodeGPSData(char* udpData)
 
 	std::lock_guard<std::mutex> lock(*m_mutex);
 	if (m_funcGPS) m_funcGPS(gps_value);
+}
+
+template <typename PointT>
+void DecodePackage<PointT>::DecodeDIFData(char* udpData)
+{
+	//ABC
+	int hex8_mirrorA = (unsigned char)udpData[508 + 4 * 14 + 1];
+	int hex8_mirrorB = (unsigned char)udpData[508 + 4 * 14 + 2];
+	int hex8_mirrorC = (unsigned char)udpData[508 + 4 * 14 + 3];
+
+	float mirrorA = (hex8_mirrorA - 128) * 0.01 + (-4.5);
+	float mirrorB = (hex8_mirrorB - 128) * 0.01 + (0);
+	float mirrorC = (hex8_mirrorC - 128) * 0.01 + (4.5);
+
+	//
+	unsigned short hexMoveAngleL = TwoHextoInt(udpData[508 + 4 * 31 + 0], udpData[508 + 4 * 31 + 1]);
+	unsigned short hexMoveAngleR = TwoHextoInt(udpData[508 + 4 * 31 + 2], udpData[508 + 4 * 31 + 3]);
+	float moveAngleL = hexMoveAngleL * 0.01;
+	float moveAngleR = hexMoveAngleR * 0.01;
+
+	//NX NY NZ
+	int hexPivotVectorX = TwoHextoInt(udpData[508 + 4 * 48 + 0], udpData[508 + 4 * 48 + 1]);
+	int hexPivotVectorY = TwoHextoInt(udpData[508 + 4 * 48 + 2], udpData[508 + 4 * 48 + 3]);
+	int hexPivotVectorZ = TwoHextoInt(udpData[508 + 4 * 49 + 2], udpData[508 + 4 * 49 + 3]);
+	float pivotVectorX = (hexPivotVectorX - 32768) * 0.0001;
+	float pivotVectorY = (hexPivotVectorY - 32768) * 0.0001;
+	float pivotVectorZ = (hexPivotVectorZ - 32768) * 0.0001;
+
+	if (!IsEqualityFloat3(mirrorA, m_skewing_duetto_Angle[0]))
+	{
+		m_skewing_duetto_Angle[0] = mirrorA;
+		m_skewing_sin_duetto[0] = sin(m_skewing_duetto_Angle[0] * m_calRA);
+		m_skewing_cos_duetto[0] = cos(m_skewing_duetto_Angle[0] * m_calRA);
+		//std::cout << "Mirror: A, " << mirrorA << std::endl;
+	}
+	if (!IsEqualityFloat3(mirrorB, m_skewing_duetto_Angle[1]))
+	{
+		m_skewing_duetto_Angle[1] = mirrorB;
+		m_skewing_sin_duetto[1] = sin(m_skewing_duetto_Angle[1] * m_calRA);
+		m_skewing_cos_duetto[1] = cos(m_skewing_duetto_Angle[1] * m_calRA);
+		//std::cout << "Mirror: B, " << mirrorB << std::endl;
+	}
+	if (!IsEqualityFloat3(mirrorC, m_skewing_duetto_Angle[2]))
+	{
+		m_skewing_duetto_Angle[2] = mirrorC;
+		m_skewing_sin_duetto[2] = sin(m_skewing_duetto_Angle[2] * m_calRA);
+		m_skewing_cos_duetto[2] = cos(m_skewing_duetto_Angle[2] * m_calRA);
+		//std::cout << "Mirror: C, " << mirrorC << std::endl;
+	}
+
+	if (!IsEqualityFloat3(moveAngleL, m_leftMoveAngle))
+	{						
+		m_leftMoveAngle = moveAngleL;
+		m_rotate_duetto_sinL = sin(m_leftMoveAngle * m_calRA); //
+		m_rotate_duetto_cosL = cos(m_leftMoveAngle * m_calRA); //
+		//std::cout << "MoveAngle: L, " << moveAngleL << std::endl;
+	}
+	if (!IsEqualityFloat3(moveAngleR, m_rightMoveAngle))
+	{
+		m_rightMoveAngle = moveAngleR;
+		m_rotate_duetto_sinR = sin(m_rightMoveAngle * m_calRA); //
+		m_rotate_duetto_cosR = cos(m_rightMoveAngle * m_calRA); //
+		//std::cout << "MoveAngle: R, " << moveAngleR << std::endl;
+	}
+
+	if (!IsEqualityFloat5(pivotVectorX, duettoPivotVector[0]))
+	{
+		duettoPivotVector[0] = pivotVectorX;
+		//std::cout << "PivotVector: X, " << pivotVectorX << std::endl;
+	}
+	if (!IsEqualityFloat5(pivotVectorY, duettoPivotVector[1]))
+	{
+		duettoPivotVector[1] = pivotVectorY;
+		//std::cout << "PivotVector: Y, " << pivotVectorY << std::endl;
+	}
+	if (!IsEqualityFloat5(pivotVectorZ, duettoPivotVector[2]))
+	{
+		duettoPivotVector[2] = pivotVectorZ;
+		//std::cout << "PivotVector: Z, " << pivotVectorZ << std::endl;
+	}
 }
 
 template <typename PointT>
