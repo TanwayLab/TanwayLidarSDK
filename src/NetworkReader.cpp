@@ -106,14 +106,16 @@ void NetworkReader::ThreadProcessPointCloud()
 		return;
 	}
 
-	SOCKADDR_IN sRecvAddr, sSendAddr; 
+	SOCKADDR_IN sRecvAddr, sSendAddr, sRecvAddrCheck; 
 	socklen_t nSenderAddrSize = sizeof(sSendAddr);
 	sRecvAddr.sin_family = AF_INET; 
 	sRecvAddr.sin_port = htons(m_localPointCloudPort);
 #ifdef __linux__
 	sRecvAddr.sin_addr.s_addr = inet_addr(m_localIP.data());
+	sRecvAddrCheck.sin_addr.s_addr = inet_addr(m_lidarIP.data());
 #elif _WIN32
 	inet_pton(AF_INET, m_localIP.data(), &(sRecvAddr.sin_addr.s_addr));
+	inet_pton(AF_INET, m_lidarIP.data(), &(sRecvAddrCheck.sin_addr.s_addr));
 #endif
 	
 
@@ -168,12 +170,7 @@ void NetworkReader::ThreadProcessPointCloud()
 			}
 		}
 
-		//std::string  strLidarIP = inet_ntoa(sSendAddr.sin_addr);
-		char IPdotdec[20];
-		inet_ntop(AF_INET, (void *)&(sSendAddr.sin_addr), IPdotdec, 16);
-		std::string  strLidarIP = IPdotdec;
-
-		if (strLidarIP != m_lidarIP) continue;
+		if (sRecvAddrCheck.sin_addr.s_addr != sSendAddr.sin_addr.s_addr) continue;
 		
 		m_packageCache.PushBackPackage(udp_data);
 
@@ -207,14 +204,16 @@ void NetworkReader::ThreadProcessGPS()
 		return;
 	}
 
-	SOCKADDR_IN sRecvAddr, sSendAddr; 
+	SOCKADDR_IN sRecvAddr, sSendAddr, sRecvAddrCheck; 
 	socklen_t nSenderAddrSize = sizeof(sSendAddr);
 	sRecvAddr.sin_family = AF_INET;
 	sRecvAddr.sin_port = htons(10110);
 #ifdef __linux__
 	sRecvAddr.sin_addr.s_addr = inet_addr(m_localIP.data());
+	sRecvAddrCheck.sin_addr.s_addr = inet_addr(m_lidarIP.data());
 #elif _WIN32
 	inet_pton(AF_INET, m_localIP.data(), &(sRecvAddr.sin_addr.s_addr));
+	inet_pton(AF_INET, m_lidarIP.data(), &(sRecvAddrCheck.sin_addr.s_addr));
 #endif
 
 	int nRet = bind(recvSocket, (SOCKADDR *)&sRecvAddr, sizeof(sRecvAddr));
@@ -269,11 +268,7 @@ void NetworkReader::ThreadProcessGPS()
 			}
 		}
 
-		char IPdotdec[20];
-		inet_ntop(AF_INET, (void *)&(sSendAddr.sin_addr), IPdotdec, 16);
-		std::string  strLidarIP = IPdotdec;
-
-		if (strLidarIP != m_lidarIP) continue;
+		if (sRecvAddrCheck.sin_addr.s_addr != sSendAddr.sin_addr.s_addr) continue;
 
 		m_packageCache.PushBackPackage(udp_data);
 
@@ -307,14 +302,16 @@ void NetworkReader::ThreadProcessDIF()
 		return;
 	}
 
-	SOCKADDR_IN sRecvAddr, sSendAddr; 
+	SOCKADDR_IN sRecvAddr, sSendAddr, sRecvAddrCheck; 
 	socklen_t nSenderAddrSize = sizeof(sSendAddr);
 	sRecvAddr.sin_family = AF_INET;
 	sRecvAddr.sin_port = htons(m_localDIFPort);
 #ifdef __linux__
 	sRecvAddr.sin_addr.s_addr = inet_addr(m_localIP.data());
+	sRecvAddrCheck.sin_addr.s_addr = inet_addr(m_lidarIP.data());
 #elif _WIN32
 	inet_pton(AF_INET, m_localIP.data(), &(sRecvAddr.sin_addr.s_addr));
+	inet_pton(AF_INET, m_lidarIP.data(), &(sRecvAddrCheck.sin_addr.s_addr));
 #endif
 
 	int nRet = bind(recvSocket, (SOCKADDR *)&sRecvAddr, sizeof(sRecvAddr));

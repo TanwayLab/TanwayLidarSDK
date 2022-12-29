@@ -92,6 +92,7 @@ public:
 	void Start();
 	void RegPointCloudCallback(const std::function<void(typename TWPointCloud<PointT>::Ptr)>& callback);
 	void RegGPSCallback(const std::function<void(const std::string&)>& callback);
+	void RegIMUDataCallback(const std::function<void(const TWIMUData&)>& callback);
 	void RegExceptionCallback(const std::function<void(const TWException&)>& callback);
 
 	void SetPackageCache(std::shared_ptr<PackageCache> packageCachePtr){ m_packageCachePtr = packageCachePtr; }
@@ -118,6 +119,7 @@ private:
 	void DecodeGPSData(char* udpData);	//decode gps date
 
 	void DecodeDIFData(char* udpData);
+	void DecodeIMUData(char* udpData);
 
 
 protected:
@@ -133,6 +135,7 @@ protected:
 
 protected:
 	int FourHexToInt(unsigned char high, unsigned char highmiddle, unsigned char middle, unsigned char low);
+	float FourHexToFloat(unsigned char high, unsigned char highmiddle, unsigned char middle, unsigned char low);
 	int TwoHextoInt(unsigned char high, unsigned char low);
 	int GetDuettoBlockNumber(double angle, int mirror, int lORr);
 	bool IsEqualityFloat3(const double value1, const double value2);
@@ -144,7 +147,7 @@ public:
 	
 protected:
 	double m_firstSeparateAngle = -1;
-	double m_calRA = (float)(3.14159265f / 180.0f);
+	double m_calRA = (double)(3.14159265f / 180.0f);
 	double m_calPulse = 0.004577 / 0.15;
 	double m_calSimple = 500 * 2.997924 / 10.f / 16384.f / 2;
 
@@ -185,8 +188,8 @@ protected:
 		-12.368f, -11.986f, -11.603f, -11.219f, -10.834f, -10.448f, -10.061f, -9.674f, -9.285f, -8.896f, -8.505f, -8.115f, -7.723f, -7.331f, -6.938f, -6.545f, -6.151f, -5.756f, -5.361f, -4.966f, -4.570f, -4.174f, -3.777f, -3.381f, -2.983f, -2.586f, -2.189f, -1.791f, -1.393f, -0.995f, -0.597f, -0.199f,
 		0.199f, 0.597f, 0.995f, 1.393f, 1.791f, 2.189f, 2.586f, 2.983f, 3.381f, 3.777f, 4.174f, 4.570f, 4.966f, 5.361f, 5.756f, 6.151f, 6.545f, 6.938f, 7.331f, 7.723f, 8.115f, 8.505f, 8.896f, 9.285f, 9.674f, 10.061f, 10.448f, 10.834f, 11.219f, 11.603f, 11.986f, 12.368f
 	};
-	float m_verticalChannelAngle_ScopeMiniA2_cos_vA_RA[64] = { 0.f };
-	float m_verticalChannelAngle_ScopeMiniA2_sin_vA_RA[64] = { 0.f };
+	double m_verticalChannelAngle_ScopeMiniA2_cos_vA_RA[64] = { 0.f };
+	double m_verticalChannelAngle_ScopeMiniA2_sin_vA_RA[64] = { 0.f };
 	double m_skewing_scopeMiniA2_Angle[3] = {0.0, 0.1, 0.2};
 	double m_skewing_scopeMiniA2_Angle_Correct[3] = {0.0, 0.1, 0.2};
 	double m_skewing_sin_scopeMiniA2_192[3] = { 0.0 };
@@ -232,6 +235,8 @@ private:
 
 	std::function<void(typename TWPointCloud<PointT>::Ptr)> m_funcPointCloud = NULL;
 	std::function<void(const std::string&)> m_funcGPS = NULL;
+	std::function<void(const TWIMUData&)> m_funcIMU = NULL;
+
 	std::function<void(const TWException&)> m_funcException = NULL;
 
 public:
@@ -249,6 +254,12 @@ template <typename PointT>
 void DecodePackage<PointT>::RegGPSCallback(const std::function<void(const std::string&)>& callback)
 {
 	m_funcGPS = callback;
+}
+
+template <typename PointT>
+void DecodePackage<PointT>::RegIMUDataCallback(const std::function<void(const TWIMUData&)>& callback)
+{
+	m_funcIMU = callback;
 }
 
 template <typename PointT>
@@ -343,6 +354,15 @@ int DecodePackage<PointT>::FourHexToInt(unsigned char high, unsigned char highmi
 	addr |= ((middle << 8) & 0xFF00);
 	addr |= ((highmiddle << 16) & 0xFF0000);
 	addr |= ((high << 24) & 0xFF000000);
+	return addr;
+}
+
+template <typename PointT>
+float DecodePackage<PointT>::FourHexToFloat(unsigned char high, unsigned char highmiddle, unsigned char middle, unsigned char low)
+{
+	unsigned char sz_float[4] = {low, middle, highmiddle, high};
+	float addr = 0;
+	memcpy(&addr, sz_float, 4);
 	return addr;
 }
 
@@ -669,6 +689,8 @@ void DecodePackage<PointT>::BeginDecodePackageData()
 				DecodeDuetto(packagePtr->m_szData);
 			else if (packagePtr->m_length == 1024)
 				DecodeDIFData(packagePtr->m_szData);
+			else if (packagePtr->m_length == 128)
+				DecodeIMUData(packagePtr->m_szData);
 			else
 			{
 				USE_EXCEPTION_TIPS(TWException::TWEC_TIPS_NOMATCH_DEVICE, "Lidar type and protocol data do not match!");
@@ -1001,7 +1023,7 @@ void DecodePackage<PointT>::UseDecodeScope192(char* udpData, std::vector<TWPoint
 			double hA_sin = sin(hA);
 			double hA_cos = cos(hA);
 
-			float offsetAngle = 0;
+			double offsetAngle = 0;
 			unsigned char  hexACount = udpData[offset + 136];
 			hexACount = hexACount << 4;
 			unsigned short uACount = hexACount >> 4;
@@ -1132,7 +1154,7 @@ void DecodePackage<PointT>::UseDecodeScopeMiniA2_192(char* udpData, std::vector<
 			mirror = hexMirror >> 6;
 
 			//offset angle m_skewing_scopeMiniA2_angle 
-			float offsetAngle = 0;
+			double offsetAngle = 0;
 			unsigned char  hexACount = udpData[offset + 136];
 			hexACount = hexACount << 4;
 			unsigned short uACount = hexACount >> 4;
@@ -1256,7 +1278,7 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 		int offsetMicrosecond = TwoHextoInt(udpData[32 + offset_block], udpData[33 + offset_block]);
 		double totalMicrosecond = frameMicrosecond + offsetMicrosecond*0.1;
 		unsigned int blockSecond = (totalMicrosecond >= 1000000)? (frameSecond+1) : frameSecond;
-		unsigned int blockMicrosecond = (totalMicrosecond >= 1000000)? (totalMicrosecond - 1000000) : totalMicrosecond;
+		unsigned int blockMicrosecond = (totalMicrosecond >= 1000000)? (unsigned int)(totalMicrosecond - 1000000) : (unsigned int)totalMicrosecond;
 
 		//L/R
 		unsigned char  hexLOrR = udpData[35 + offset_block];
@@ -1350,13 +1372,13 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 			double L_1 = hexL1 * 0.005;
 			unsigned char hexChar1 = udpData[42 + offset_block + seq * 10];
 			unsigned short hexPulse1 = hexChar1;
-			double pulse_1 = hexPulse1 * 0.125;
+			double pulse_1 = hexPulse1 * 0.25;
 
 			double hexL2 = TwoHextoInt(udpData[43 + offset_block + seq * 10], udpData[44 + offset_block + seq * 10]);
-			double L_2 = hexL2 * 0.005; //米
+			double L_2 = hexL2 * 0.005; //
 			unsigned char hexChar2 = udpData[45 + offset_block + seq * 10];
 			unsigned short hexPulse2 = hexChar2;
-			double pulse_2 = hexPulse2 * 0.125;
+			double pulse_2 = hexPulse2 * 0.25;
 
 
 			DecodePackage::TWPointData basic_point;
@@ -1457,23 +1479,23 @@ void DecodePackage<PointT>::DecodeDIFData(char* udpData)
 	int hex8_mirrorB = (unsigned char)udpData[508 + 4 * 14 + 2];
 	int hex8_mirrorC = (unsigned char)udpData[508 + 4 * 14 + 3];
 
-	float mirrorA = (hex8_mirrorA - 128) * 0.01 + (-4.5);
-	float mirrorB = (hex8_mirrorB - 128) * 0.01 + (0);
-	float mirrorC = (hex8_mirrorC - 128) * 0.01 + (4.5);
+	double mirrorA = (hex8_mirrorA - 128) * 0.01 + (-4.5);
+	double mirrorB = (hex8_mirrorB - 128) * 0.01 + (0);
+	double mirrorC = (hex8_mirrorC - 128) * 0.01 + (4.5);
 
 	//
 	unsigned short hexMoveAngleL = TwoHextoInt(udpData[508 + 4 * 31 + 0], udpData[508 + 4 * 31 + 1]);
 	unsigned short hexMoveAngleR = TwoHextoInt(udpData[508 + 4 * 31 + 2], udpData[508 + 4 * 31 + 3]);
-	float moveAngleL = hexMoveAngleL * 0.01;
-	float moveAngleR = hexMoveAngleR * 0.01;
+	double moveAngleL = hexMoveAngleL * 0.01;
+	double moveAngleR = hexMoveAngleR * 0.01;
 
 	//NX NY NZ
 	int hexPivotVectorX = TwoHextoInt(udpData[508 + 4 * 48 + 0], udpData[508 + 4 * 48 + 1]);
 	int hexPivotVectorY = TwoHextoInt(udpData[508 + 4 * 48 + 2], udpData[508 + 4 * 48 + 3]);
 	int hexPivotVectorZ = TwoHextoInt(udpData[508 + 4 * 49 + 2], udpData[508 + 4 * 49 + 3]);
-	float pivotVectorX = (hexPivotVectorX - 32768) * 0.0001;
-	float pivotVectorY = (hexPivotVectorY - 32768) * 0.0001;
-	float pivotVectorZ = (hexPivotVectorZ - 32768) * 0.0001;
+	double pivotVectorX = (hexPivotVectorX - 32768) * 0.0001;
+	double pivotVectorY = (hexPivotVectorY - 32768) * 0.0001;
+	double pivotVectorZ = (hexPivotVectorZ - 32768) * 0.0001;
 
 	if (!IsEqualityFloat3(mirrorA, m_skewing_duetto_Angle[0]))
 	{
@@ -1527,6 +1549,45 @@ void DecodePackage<PointT>::DecodeDIFData(char* udpData)
 		duettoPivotVector[2] = pivotVectorZ;
 		//std::cout << "PivotVector: Z, " << pivotVectorZ << std::endl;
 	}
+}
+
+template <typename PointT>
+void DecodePackage<PointT>::DecodeIMUData(char* udpData)
+{
+	TWIMUData imu_data;
+
+	//time
+	unsigned int t_sec = FourHexToInt(udpData[13], udpData[14], udpData[15], udpData[16]);
+	double t_usec = FourHexToInt(udpData[17], udpData[18], udpData[19], udpData[20]) * 0.1;
+
+	imu_data.stamp = (uint64_t)((t_sec) * 1000 * 1000 + t_usec);
+
+	//status calibrate
+	unsigned char  hex_status = udpData[35];
+	hex_status = hex_status << 7;
+	unsigned short leftOrRight = hex_status >> 7; 
+	imu_data.calibrate = (0==leftOrRight) ? false:true;
+
+	//temperature
+	imu_data.temperature = (float)((TwoHextoInt(udpData[36], udpData[37]) - 32768) * (1.0/256));
+
+	//angular velocity
+	imu_data.angular_velocity[0] = (float)((TwoHextoInt(udpData[38], udpData[39]) - 32768) * 0.0005);
+	imu_data.angular_velocity[1] = (float)((TwoHextoInt(udpData[40], udpData[41]) - 32768) * 0.0005);
+	imu_data.angular_velocity[2] = (float)((TwoHextoInt(udpData[42], udpData[43]) - 32768) * 0.0005);
+
+	//linear acceleration
+	imu_data.linear_acceleration[0] = (float)((TwoHextoInt(udpData[44], udpData[45]) - 32768) * 0.0002);
+	imu_data.linear_acceleration[1] = (float)((TwoHextoInt(udpData[46], udpData[47]) - 32768) * 0.0002);
+	imu_data.linear_acceleration[2] = (float)((TwoHextoInt(udpData[48], udpData[49]) - 32768) * 0.0002);
+
+	imu_data.gyro_noise = FourHexToFloat(udpData[50], udpData[51], udpData[52], udpData[53]);
+	imu_data.gyro_bias = FourHexToFloat(udpData[54], udpData[55], udpData[56], udpData[57]);
+
+	imu_data.accel_noise = FourHexToFloat(udpData[58], udpData[59], udpData[60], udpData[61]);
+	imu_data.accel_bias = FourHexToFloat(udpData[62], udpData[63], udpData[64], udpData[65]);
+
+	if (m_funcIMU) m_funcIMU(imu_data);
 }
 
 template <typename PointT>

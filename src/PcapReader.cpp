@@ -35,8 +35,8 @@
 #include "CommonDefine.h"
 
 
-PcapReader::PcapReader(std::string filePath, std::string lidarIP, int localPort, PackageCache& packageCache, bool repeat, std::mutex* mutex)
-	: m_pacpPath(filePath), m_lidarIP(lidarIP), m_localPort(localPort), m_packageCache(packageCache), m_repeat(repeat), m_mutex(mutex)
+PcapReader::PcapReader(std::string filePath, std::string lidarIP, int localPort, int localDIFPort, PackageCache& packageCache, bool repeat, std::mutex* mutex)
+	: m_pacpPath(filePath), m_lidarIP(lidarIP), m_localPort(localPort), m_localDIFPort(localDIFPort), m_packageCache(packageCache), m_repeat(repeat), m_mutex(mutex)
 {
 	m_pause.store(false);
 	run_read.store(false);
@@ -195,7 +195,9 @@ void PcapReader::ThreadLoadProcess()
 			if (readSize != sizeof(UDPHdr)) 
 				break;
 			//check invalid
-			if (m_localPort != udp_hdr.GetDestPort() && 10110 != udp_hdr.GetDestPort())
+			if (m_localPort != udp_hdr.GetDestPort() && 
+				10110 != udp_hdr.GetDestPort() &&
+				m_localDIFPort != udp_hdr.GetDestPort())
 			{
 				//ignore
 				inStream.seekg(udp_hdr.GetLength() - sizeof(UDPHdr), std::ios::cur);
