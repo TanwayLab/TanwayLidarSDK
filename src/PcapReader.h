@@ -162,7 +162,7 @@ struct UDPHdr
 class PcapReader
 {
 public:
-	PcapReader(std::string filePath, std::string lidarIP, int localPort, PackageCache& packageCache, bool repeat, std::mutex* mutex);
+	PcapReader(std::string filePath, std::string lidarIP, int localPort, int localDIFPort, PackageCache& packageCache, bool repeat, std::mutex* mutex);
 	~PcapReader();
 	void RereadPcap(std::string pcapPath);
 	void PausePcap(bool pause);
@@ -176,6 +176,7 @@ private:
 	std::string m_pacpPath;
 	std::string m_lidarIP;
 	int m_localPort;
+	int m_localDIFPort;
 	bool m_repeat;
 	std::atomic<bool>  m_pause;
 	std::atomic<bool>  run_read;

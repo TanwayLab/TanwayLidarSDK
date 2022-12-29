@@ -93,6 +93,26 @@ struct TWUDPPackage
 	unsigned int t_usec; 
 };
 
+struct TWIMUData
+{
+	TWIMUData()
+	{
+		memset(angular_velocity, 0, sizeof(float)*3);
+		memset(linear_acceleration, 0, sizeof(float)*3);
+	}
+	uint64_t stamp = 0;
+	std::string frame_id = "TanwayIMU";
+	
+	bool calibrate = false;
+	float  temperature = 0;
+	float angular_velocity[3];
+	float linear_acceleration[3];
+	float gyro_noise = 0;
+	float gyro_bias = 0;
+	float accel_noise = 0;
+	float accel_bias = 0;
+};
+
 template <typename PointT>
 #ifdef _MSC_VER
 struct __declspec(align(16)) TWPointCloud

@@ -93,6 +93,10 @@ public:
 	*/
 	inline void RegGPSCallback(const std::function<void(const std::string&)>& callback);
 	/*
+	*Register the IMU data callback function.
+	*/
+	inline void RegIMUDataCallback(const std::function<void(const TWIMUData&)>& callback);
+	/*
 	*Register the exception info callback function.
 	*/
 	inline void RegExceptionCallback(const std::function<void(const TWException&)>& callback);
@@ -213,6 +217,12 @@ template <typename PointT>
 void TanwayLidarSDK<PointT>::RegGPSCallback(const std::function<void(const std::string&)>& callback)
 {
 	m_decodePackagePtr->RegGPSCallback(callback);
+}
+
+template <typename PointT>
+void TanwayLidarSDK<PointT>::RegIMUDataCallback(const std::function<void(const TWIMUData&)>& callback)
+{
+	m_decodePackagePtr->RegIMUDataCallback(callback);
 }
 
 template <typename PointT>

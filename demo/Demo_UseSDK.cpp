@@ -119,7 +119,7 @@ int main()
 	/*
 	*using pcap file to replay.
 	*/
-	//TanwayLidarSDK<PointXYZ> lidar("E:/record/tensor.pcap", "192.168.111.51", 5600, 0, LT_TensorPro, true);
+	//TanwayLidarSDK<PointXYZ> lidar("E:/record/Duetto/duetto.pcap", "192.168.111.51", 5600, 5700, LT_Duetto, true);
 	//lidar.RegPointCloudCallback(pointCloudCallback);
 	//lidar.RegGPSCallback(gpsCallback);
 	//lidar.RegExceptionCallback(exceptionCallback);
