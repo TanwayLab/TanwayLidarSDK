@@ -100,6 +100,7 @@ public:
 	void SetCorrectionAngleToTSP0332(float angle1, float angle2);
 	void SetCorrectionAngleToScope192(float angle1, float angle2, float angle3);
 	void SetCorrectionAngleToScopeMiniA2_192(float angle1, float angle2, float angle3);
+	void SetCorrectKBValueToDuetto(double k, double b);
 	void SetMutex(std::mutex* mutex){ m_mutex = mutex; }
 
 private:
@@ -224,6 +225,8 @@ protected:
 	double duettoPivotVector[3] = {0, 0, 1};
 	double m_correction_movement_L[3] = {0.017, 0, 0};
 	double m_correction_movement_R[3] = {-0.017, 0, 0};
+	double m_kValue = 1.0;
+	double m_bValue = 0.0;
 
 
 private:
@@ -266,6 +269,14 @@ template <typename PointT>
 void DecodePackage<PointT>::RegExceptionCallback(const std::function<void(const TWException&)>& callback)
 {
 	m_funcException = callback;
+}
+
+
+template <typename PointT>
+void DecodePackage<PointT>::SetCorrectKBValueToDuetto(double k, double b)
+{
+	m_kValue = k;
+	m_bValue = b;
 }
 
 template <typename PointT>
@@ -1395,7 +1406,8 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 				basic_point.z = L_1 * z_t + z_move;
 
 				basic_point.distance = L_1;
-				basic_point.pulse = pulse_1;
+				int tmpIntensity = (int)((m_kValue * pulse_1 + m_bValue)* 256.0 * 0.06667 + 0.5);
+				basic_point.pulse = tmpIntensity > 256 ? 256:tmpIntensity;
 				basic_point.echo = 1;
 				basic_point.t_sec = blockSecond;
 				basic_point.t_usec = blockMicrosecond;
@@ -1411,7 +1423,8 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 				basic_point.z = L_2 * z_t + z_move;
 
 				basic_point.distance = L_2;
-				basic_point.pulse = pulse_2;
+				int tmpIntensity = (int)((m_kValue * pulse_2 + m_bValue)* 256.0 * 0.06667 + 0.5);
+				basic_point.pulse = tmpIntensity > 256 ? 256:tmpIntensity;
 				basic_point.echo = 2;
 				basic_point.t_sec = blockSecond;
 				basic_point.t_usec = blockMicrosecond;
