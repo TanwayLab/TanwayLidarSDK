@@ -185,7 +185,7 @@ void PcapReader::ThreadLoadProcess()
 			if (m_lidarIP != ip_hdr.GetSourceIP() || ip_hdr.protocol != 17)
 			{
 				//ignore
-				inStream.seekg(ip_hdr.GetLength() - sizeof(IPHdr), std::ios::cur);
+				inStream.seekg(pcap_pkt_hdr.len - sizeof(NETHdr) - sizeof(IPHdr), std::ios::cur);
 				continue;
 			}
 
@@ -200,7 +200,7 @@ void PcapReader::ThreadLoadProcess()
 				m_localDIFPort != udp_hdr.GetDestPort())
 			{
 				//ignore
-				inStream.seekg(udp_hdr.GetLength() - sizeof(UDPHdr), std::ios::cur);
+				inStream.seekg(pcap_pkt_hdr.len - sizeof(NETHdr) - sizeof(IPHdr) - sizeof(UDPHdr), std::ios::cur);
 				continue;
 			}
 

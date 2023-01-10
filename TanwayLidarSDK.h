@@ -81,9 +81,8 @@ public:
 	void SetCorrectedAngleToTSP0332(float angle1, float angle2);
 	void SetCorrectedAngleToScope192(float angle1, float angle2, float angle3);
 	void SetCorrectionAngleToScopeMiniA2_192(float angle1, float angle2, float angle3);
-	void SetCorrectionAngleToDuetto(float angle1, float angle2, float angle3);
-	void SetCorrectionMovementToDuetto(float lx, float ly, float lz, float rx, float ry, float rz);
-	void SetMoveAngleToDuetto(float leftAngle, float rightAngle);
+	void SetCorrectKBValueToDuetto(double k, double b);
+
 	/*
 	*Register the point cloud callback function.
 	*/
@@ -166,21 +165,9 @@ void TanwayLidarSDK<PointT>::PausePcap(bool pause)
 }
 
 template <typename PointT>
-void TanwayLidarSDK<PointT>::SetCorrectionAngleToDuetto(float angle1, float angle2, float angle3)
+void TanwayLidarSDK<PointT>::SetCorrectKBValueToDuetto(double k, double b)
 {
-	m_decodePackagePtr->SetCorrectionAngleToDuetto(angle1, angle2, angle3);
-}
-
-template <typename PointT>
-void TanwayLidarSDK<PointT>::SetCorrectionMovementToDuetto(float lx, float ly, float lz, float rx, float ry, float rz)
-{
-	m_decodePackagePtr->SetCorrectionMovementToDuetto(lx, ly, lz, rx, ry, rz);
-}
-
-template <typename PointT>
-void TanwayLidarSDK<PointT>::SetMoveAngleToDuetto(float leftAngle, float rightAngle)
-{
-	m_decodePackagePtr->SetMoveAngleToDuetto(leftAngle, rightAngle);
+	m_decodePackagePtr->SetCorrectKBValueToDuetto(k, b);
 }
 
 template <typename PointT>
