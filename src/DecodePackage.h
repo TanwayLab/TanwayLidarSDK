@@ -1407,8 +1407,8 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 
 				basic_point.distance = L_1;
 				int tmpIntensity = (int)((m_kValue * pulse_1 + m_bValue)* 256.0 * 0.06667 + 0.5);
-				basic_point.pulse = tmpIntensity > 256 ? 256:tmpIntensity;
-				basic_point.echo = 1;
+				basic_point.pulse = tmpIntensity > 255 ? 255:tmpIntensity;
+				basic_point.echo = 1;/*  */
 				basic_point.t_sec = blockSecond;
 				basic_point.t_usec = blockMicrosecond;
 
@@ -1424,7 +1424,7 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 
 				basic_point.distance = L_2;
 				int tmpIntensity = (int)((m_kValue * pulse_2 + m_bValue)* 256.0 * 0.06667 + 0.5);
-				basic_point.pulse = tmpIntensity > 256 ? 256:tmpIntensity;
+				basic_point.pulse = tmpIntensity > 255 ? 255:tmpIntensity;
 				basic_point.echo = 2;
 				basic_point.t_sec = blockSecond;
 				basic_point.t_usec = blockMicrosecond;
