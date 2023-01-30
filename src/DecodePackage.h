@@ -1573,7 +1573,7 @@ void DecodePackage<PointT>::DecodeIMUData(char* udpData)
 	unsigned int t_sec = FourHexToInt(udpData[13], udpData[14], udpData[15], udpData[16]);
 	double t_usec = FourHexToInt(udpData[17], udpData[18], udpData[19], udpData[20]) * 0.1;
 
-	imu_data.stamp = (uint64_t)((t_sec) * 1000 * 1000 + t_usec);
+	imu_data.stamp = (uint64_t)(t_sec) * 1000 * 1000 + t_usec;
 
 	//status calibrate
 	unsigned char  hex_status = udpData[35];
