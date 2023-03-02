@@ -81,12 +81,11 @@ public:
 	void SetCorrectedAngleToTSP0332(float angle1, float angle2);
 	void SetCorrectedAngleToScope192(float angle1, float angle2, float angle3);
 	void SetCorrectionAngleToScopeMiniA2_192(float angle1, float angle2, float angle3);
-	void SetCorrectKBValueToDuetto(double k, double b);
 
 	/*
 	*Register the point cloud callback function.
 	*/
-	inline void RegPointCloudCallback(const std::function<void(typename TWPointCloud<PointT>::Ptr)>& callback);
+	inline void RegPointCloudCallback(const std::function<void(typename TWPointCloud<PointT>::Ptr, bool)>& callback);
 	/*
 	*Register the gps string callback function.
 	*/
@@ -165,12 +164,6 @@ void TanwayLidarSDK<PointT>::PausePcap(bool pause)
 }
 
 template <typename PointT>
-void TanwayLidarSDK<PointT>::SetCorrectKBValueToDuetto(double k, double b)
-{
-	m_decodePackagePtr->SetCorrectKBValueToDuetto(k, b);
-}
-
-template <typename PointT>
 void TanwayLidarSDK<PointT>::SetCorrectedAngleToScope192(float angle1, float angle2, float angle3)
 {
 	m_decodePackagePtr->SetCorrectionAngleToScope192(angle1, angle2, angle3);
@@ -195,7 +188,7 @@ TanwayLidarSDK<PointT>::~TanwayLidarSDK()
 }
 
 template <typename PointT>
-void TanwayLidarSDK<PointT>::RegPointCloudCallback(const std::function<void(typename TWPointCloud<PointT>::Ptr)>& callback)
+void TanwayLidarSDK<PointT>::RegPointCloudCallback(const std::function<void(typename TWPointCloud<PointT>::Ptr, bool)>& callback)
 {
 	m_decodePackagePtr->RegPointCloudCallback(callback);
 }

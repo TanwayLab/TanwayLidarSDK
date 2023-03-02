@@ -60,7 +60,8 @@ MemberCheck(t_sec)
 MemberCheck(t_usec)
 
 #define PointT_HasMember(C, member) has_member_##member<C>::value
-
+#define TensorPulseMapValue 50
+#define ScopePulseMapValue	35
 
 template <typename PointT>
 class DecodePackage
@@ -90,7 +91,7 @@ public:
 	virtual ~DecodePackage();
 
 	void Start();
-	void RegPointCloudCallback(const std::function<void(typename TWPointCloud<PointT>::Ptr)>& callback);
+	void RegPointCloudCallback(const std::function<void(typename TWPointCloud<PointT>::Ptr, bool)>& callback);
 	void RegGPSCallback(const std::function<void(const std::string&)>& callback);
 	void RegIMUDataCallback(const std::function<void(const TWIMUData&)>& callback);
 	void RegExceptionCallback(const std::function<void(const TWException&)>& callback);
@@ -100,13 +101,12 @@ public:
 	void SetCorrectionAngleToTSP0332(float angle1, float angle2);
 	void SetCorrectionAngleToScope192(float angle1, float angle2, float angle3);
 	void SetCorrectionAngleToScopeMiniA2_192(float angle1, float angle2, float angle3);
-	void SetCorrectKBValueToDuetto(double k, double b);
 	void SetMutex(std::mutex* mutex){ m_mutex = mutex; }
 
 private:
 	void InitBasicVariables();
 	void BeginDecodePackageData();
-	
+	void CheckLostPacket(float angle, unsigned short mirror);
 
 	void DecodeTensorLite(char* udpData, unsigned int t_sec, unsigned int t_usec);
 	void DecodeTensorPro(char* udpData, unsigned int t_sec, unsigned int t_usec);
@@ -118,7 +118,6 @@ private:
 	void DecodeDuetto(char* udpData);
 
 	void DecodeGPSData(char* udpData);	//decode gps date
-
 	void DecodeDIFData(char* udpData);
 	void DecodeIMUData(char* udpData);
 
@@ -225,10 +224,19 @@ protected:
 	double duettoPivotVector[3] = {0, 0, 1};
 	double m_correction_movement_L[3] = {0.017, 0, 0};
 	double m_correction_movement_R[3] = {-0.017, 0, 0};
-	double m_kValue = 1.0;
-	double m_bValue = 0.0;
+
+private:
+	int m_preBlockCount = 0;
+	bool m_bLostPacket = false;
+	int m_curBlockCount = 0;
+
+	int g_recvFrameCount = 0;
+	double g_calTimeTotal = 0;
 
 
+	//0:LT_TensorLite,1:LT_TensorPro,2:LT_TensorPro_echo2,3:LT_Scope,4:LT_TSP0332,5:LT_Scope192,6:LT_Duetto,7:LT_ScopeMiniA2_192
+	int TWLidarBlockCount[LT_Total] = {600, 600, 1200, 720*4, 1200, 720*4*3, 960*3, 720*4*3};
+	int TWLidarBlockCountOffset[LT_Total] = {2, 2, 4, 2*4, 4, 6*4, 6, 6*4};
 private:
 	std::shared_ptr<PackageCache> m_packageCachePtr;
 	TWLidarType m_lidarType;
@@ -236,7 +244,7 @@ private:
 	std::atomic<bool>  run_exit;
 	std::mutex* m_mutex;
 
-	std::function<void(typename TWPointCloud<PointT>::Ptr)> m_funcPointCloud = NULL;
+	std::function<void(typename TWPointCloud<PointT>::Ptr, bool)> m_funcPointCloud = NULL;
 	std::function<void(const std::string&)> m_funcGPS = NULL;
 	std::function<void(const TWIMUData&)> m_funcIMU = NULL;
 
@@ -248,7 +256,7 @@ public:
 
 
 template <typename PointT>
-void DecodePackage<PointT>::RegPointCloudCallback(const std::function<void(typename TWPointCloud<PointT>::Ptr)>& callback)
+void DecodePackage<PointT>::RegPointCloudCallback(const std::function<void(typename TWPointCloud<PointT>::Ptr, bool)>& callback)
 {
 	m_funcPointCloud = callback;
 }
@@ -269,14 +277,6 @@ template <typename PointT>
 void DecodePackage<PointT>::RegExceptionCallback(const std::function<void(const TWException&)>& callback)
 {
 	m_funcException = callback;
-}
-
-
-template <typename PointT>
-void DecodePackage<PointT>::SetCorrectKBValueToDuetto(double k, double b)
-{
-	m_kValue = k;
-	m_bValue = b;
 }
 
 template <typename PointT>
@@ -728,6 +728,53 @@ void DecodePackage<PointT>::BeginDecodePackageData()
 }
 
 template <typename PointT>
+void DecodePackage<PointT>::CheckLostPacket(float angle, unsigned short mirror)
+{
+	if (LT_TensorLite == m_lidarType || LT_TensorPro == m_lidarType || LT_TensorPro_echo2 == m_lidarType || LT_Scope == m_lidarType)
+	{
+		if (angle < m_startAngle && m_curBlockCount > 0)
+		{
+			m_preBlockCount = m_curBlockCount;
+			m_curBlockCount = 0;
+			
+			m_bLostPacket = (m_preBlockCount >= (TWLidarBlockCount[m_lidarType]-TWLidarBlockCountOffset[m_lidarType]) && m_preBlockCount <= (TWLidarBlockCount[m_lidarType]+TWLidarBlockCountOffset[m_lidarType]));
+		}
+		if (angle >= m_startAngle && angle <= m_endAngle)
+		{
+			m_curBlockCount++;
+		}
+	}
+	else if (LT_TSP0332 == m_lidarType || LT_Scope192 == m_lidarType || LT_ScopeMiniA2_192 == m_lidarType)
+	{
+		if (angle < m_startAngle && 0 == mirror && m_curBlockCount > 0)
+		{
+			m_preBlockCount = m_curBlockCount;
+			m_curBlockCount = 0;
+			
+			m_bLostPacket = (m_preBlockCount >= (TWLidarBlockCount[m_lidarType]-TWLidarBlockCountOffset[m_lidarType]) && m_preBlockCount <= (TWLidarBlockCount[m_lidarType]+TWLidarBlockCountOffset[m_lidarType]));
+		}
+		if (angle >= m_startAngle && angle <= m_endAngle)
+		{
+			m_curBlockCount++;
+		}
+	}
+	else if (LT_Duetto == m_lidarType)
+	{
+		if (angle < m_startAngle && 1 == mirror && m_curBlockCount > 0)
+		{
+			m_preBlockCount = m_curBlockCount;
+			m_curBlockCount = 0;
+			
+			m_bLostPacket = (m_preBlockCount >= (TWLidarBlockCount[m_lidarType]-TWLidarBlockCountOffset[m_lidarType]) && m_preBlockCount <= (TWLidarBlockCount[m_lidarType]+TWLidarBlockCountOffset[m_lidarType]));
+		}
+		if (angle >= m_startAngle && angle <= m_endAngle)
+		{
+			m_curBlockCount++;
+		}
+	}
+}
+
+template <typename PointT>
 void DecodePackage<PointT>::UseDecodeTensorPro(char* udpData, std::vector<TWPointData>& pointCloud)
 {
 	for (int blocks_num = 0; blocks_num < 20; blocks_num++)
@@ -745,14 +792,16 @@ void DecodePackage<PointT>::UseDecodeTensorPro(char* udpData, std::vector<TWPoin
 		hexMirror = hexMirror >> 7;
 		unsigned short mirror = hexMirror;
 
-		int seq = 0;
-		while (seq < 16)
+		CheckLostPacket(horizontalAngle, mirror);
+
+		for (int seq=0; seq<16; seq++)
 		{
 			unsigned short  hexL = TwoHextoInt(udpData[offset + seq * 4 + 0], udpData[offset + seq * 4 + 1]);
 			unsigned short  hexPulse = TwoHextoInt(udpData[offset + seq * 4 + 2], udpData[offset + seq * 4 + 3]);
 
 			double L = hexL * m_calSimple;
-			double pulse = hexPulse * m_calPulse;
+			int intensity = (hexPulse * m_calPulse) / TensorPulseMapValue*255.0 + 0.5;
+			double pulse = intensity > 255 ? 255 : intensity;
 
 			double cos_hA = cos(horizontalAngle * m_calRA);
 			double sin_hA = sin(horizontalAngle * m_calRA);
@@ -775,8 +824,6 @@ void DecodePackage<PointT>::UseDecodeTensorPro(char* udpData, std::vector<TWPoin
 			basic_point.t_usec = blockMicrosecond;
 
 			pointCloud.push_back(std::move(basic_point));
-
-			seq++;
 		}
 	}
 }
@@ -799,14 +846,16 @@ void DecodePackage<PointT>::UseDecodeTensorPro_echo2(char* udpData, std::vector<
 		hexMirror = hexMirror >> 7;
 		unsigned short mirror = hexMirror;
 
-		int seq = 0;
-		while (seq < 16)
+		CheckLostPacket(horizontalAngle, mirror);
+
+		for (int seq=0; seq<16; seq++)
 		{
 			unsigned short  hexL = TwoHextoInt(udpData[offset + seq * 4 + 0], udpData[offset + seq * 4 + 1]);
 			unsigned short  hexPulse = TwoHextoInt(udpData[offset + seq * 4 + 2], udpData[offset + seq * 4 + 3]);
 
 			double L = hexL * m_calSimple;
-			double pulse = hexPulse * m_calPulse;
+			int intensity = (hexPulse * m_calPulse) / TensorPulseMapValue*255.0 + 0.5;
+			double pulse = intensity > 255 ? 255 : intensity;
 
 			double cos_hA = cos(horizontalAngle * m_calRA);
 			double sin_hA = sin(horizontalAngle * m_calRA);
@@ -828,8 +877,6 @@ void DecodePackage<PointT>::UseDecodeTensorPro_echo2(char* udpData, std::vector<
 			basic_point.t_sec = 0;
 			basic_point.t_usec = blockMicrosecond;
 			pointCloud.push_back(std::move(basic_point));
-
-			seq++;
 		}
 	}
 }
@@ -866,14 +913,16 @@ void DecodePackage<PointT>::UseDecodeTensorPro0332(char* udpData, std::vector<TW
 		double z_cal_1 = 2.0 * m_skewing_sin_tsp[faceIndex] * m_skewing_cos_tsp[faceIndex] * hA_cos;
 		double z_cal_2 = 2.0 * m_skewing_sin_tsp[faceIndex] * m_skewing_sin_tsp[faceIndex] - 1;
 
-		int seq = 0;
-		while (seq < 16)
+		CheckLostPacket(horizontalAngle, mirror);
+
+		for (int seq=0; seq<16; seq++)
 		{
 			unsigned short  hexL = TwoHextoInt(udpData[offset + seq * 4 + 0], udpData[offset + seq * 4 + 1]);
 			unsigned short  hexPulse = TwoHextoInt(udpData[offset + seq * 4 + 2], udpData[offset + seq * 4 + 3]);
 
 			double L = hexL * m_calSimple;
-			double pulse = hexPulse * m_calPulse;
+			int intensity = (hexPulse * m_calPulse) / TensorPulseMapValue*255.0 + 0.5;
+			double pulse = intensity > 255 ? 255 : intensity;
 
 			double cos_vA_RA = m_verticalChannelAngle16_cos_vA_RA[seq];
 			double sin_vA_RA = m_verticalChannelAngle16_sin_vA_RA[seq];
@@ -895,8 +944,6 @@ void DecodePackage<PointT>::UseDecodeTensorPro0332(char* udpData, std::vector<TW
 				basic_point.t_usec = blockMicrosecond;
 				pointCloud.push_back(std::move(basic_point));
 			}
-
-			seq++;
 		}
 	}
 }
@@ -935,19 +982,22 @@ void DecodePackage<PointT>::UseDecodeScope(char* udpData, std::vector<TWPointDat
 				horizontalAngle = firstSeparateAngle;
 		}
 
-		int seq = 0;
-		while (seq < 16)
+		CheckLostPacket(horizontalAngle, mirror);
+
+		for (int seq=0; seq<16; seq++)
 		{
 			double hexToInt1 = TwoHextoInt(udpData[offset_block + seq * 8 + 0], udpData[offset_block + seq * 8 + 1]);
 			double hexPulse1 = TwoHextoInt(udpData[offset_block + seq * 8 + 2], udpData[offset_block + seq * 8 + 3]);
 			double L_1 = hexToInt1 * m_calSimple;
-			double pulse_1 = hexPulse1 * m_calPulse;
+			int intensity1 = (hexPulse1 * m_calPulse) / ScopePulseMapValue*255.0 + 0.5;
+			double pulse_1 = intensity1 > 255 ? 255 : intensity1;
 
 
 			double hexToInt2 = TwoHextoInt(udpData[offset_block + seq * 8 + 4], udpData[offset_block + seq * 8 + 5]);
 			double hexPulse2 = TwoHextoInt(udpData[offset_block + seq * 8 + 6], udpData[offset_block + seq * 8 + 7]);
 			double L_2 = hexToInt2 * m_calSimple;
-			double pulse_2 = hexPulse2 * m_calPulse; 
+			int intensity2 = (hexPulse2 * m_calPulse) / ScopePulseMapValue*255.0 + 0.5;
+			double pulse_2 = intensity2 > 255 ? 255 : intensity2;
 
 			int channel = 65 - (16 * (blocks_num >= 4 ? blocks_num - 4 : blocks_num) + seq + 1);
 
@@ -991,15 +1041,14 @@ void DecodePackage<PointT>::UseDecodeScope(char* udpData, std::vector<TWPointDat
 				basic_point.distance = L_2;
 				basic_point.channel = channel; 
 				basic_point.angle = horizontalAngle;
-				basic_point.pulse = pulse_1;
-				basic_point.echo = 1;
+				basic_point.pulse = pulse_2;
+				basic_point.echo = 2;
 				basic_point.mirror = mirror;
 				basic_point.t_sec = blockSecond;
 				basic_point.t_usec = blockMicrosecond;
 				pointCloud.push_back(std::move(basic_point));
 			}
 			*/
-			seq++;
 		}
 	}
 }
@@ -1067,19 +1116,22 @@ void DecodePackage<PointT>::UseDecodeScope192(char* udpData, std::vector<TWPoint
 		unsigned char  hexSepIndex = udpData[offset + 136];
 		unsigned short sepIndex = hexSepIndex >> 6;
 
-		int seq = 0;
-		while (seq < 16)
+		CheckLostPacket(horizontalAngle, mirror);
+
+		for (int seq=0; seq<16; seq++)
 		{
 			double hexToInt1 = TwoHextoInt(udpData[offset + seq * 8 + 0], udpData[offset + seq * 8 + 1]);
 			double hexPulse1 = TwoHextoInt(udpData[offset + seq * 8 + 2], udpData[offset + seq * 8 + 3]);
 			double L_1 = hexToInt1 * m_calSimple;
-			double pulse_1 = hexPulse1 * m_calPulse; 
+			int intensity1 = (hexPulse1 * m_calPulse) / ScopePulseMapValue*255.0 + 0.5;
+			double pulse_1 = intensity1 > 255 ? 255 : intensity1;
 
 
 			double hexToInt2 = TwoHextoInt(udpData[offset + seq * 8 + 4], udpData[offset + seq * 8 + 5]);
 			double hexPulse2 = TwoHextoInt(udpData[offset + seq * 8 + 6], udpData[offset + seq * 8 + 7]);
 			double L_2 = hexToInt2 * m_calSimple;
-			double pulse_2 = hexPulse2 * m_calPulse;
+			int intensity2 = (hexPulse2 * m_calPulse) / ScopePulseMapValue*255.0 + 0.5;
+			double pulse_2 = intensity2 > 255 ? 255 : intensity2;
 
 			int channel = 65 - (16 * (blocks_num >= 4 ? blocks_num - 4 : blocks_num) + seq + 1);
 
@@ -1133,7 +1185,6 @@ void DecodePackage<PointT>::UseDecodeScope192(char* udpData, std::vector<TWPoint
 				pointCloud.push_back(std::move(basic_point));
 			}
 			*/
-			seq++;
 		}
 	}
 }
@@ -1202,18 +1253,22 @@ void DecodePackage<PointT>::UseDecodeScopeMiniA2_192(char* udpData, std::vector<
 		unsigned char  hexSepIndex = udpData[offset + 136];
 		unsigned short sepIndex = hexSepIndex >> 6;
 
-		int seq = 0;
-		while (seq < 16)
+		CheckLostPacket(horizontalAngle, mirror);
+
+		for (int seq=0; seq<16; seq++)
 		{
 			double hexToInt1 = TwoHextoInt(udpData[offset + seq * 8 + 0], udpData[offset + seq * 8 + 1]);
 			double hexPulse1 = TwoHextoInt(udpData[offset + seq * 8 + 2], udpData[offset + seq * 8 + 3]);
 			double L_1 = hexToInt1 * m_calSimple;
-			double pulse_1 = hexPulse1 * m_calPulse; 
+			int intensity1 = (hexPulse1 * m_calPulse) / ScopePulseMapValue*255.0 + 0.5;
+			double pulse_1 = intensity1 > 255 ? 255 : intensity1;
+
 
 			double hexToInt2 = TwoHextoInt(udpData[offset + seq * 8 + 4], udpData[offset + seq * 8 + 5]);
 			double hexPulse2 = TwoHextoInt(udpData[offset + seq * 8 + 6], udpData[offset + seq * 8 + 7]);
 			double L_2 = hexToInt2 * m_calSimple;
-			double pulse_2 = hexPulse2 * m_calPulse;
+			int intensity2 = (hexPulse2 * m_calPulse) / ScopePulseMapValue*255.0 + 0.5;
+			double pulse_2 = intensity2 > 255 ? 255 : intensity2;
 
 			int channel = 65 - (16 * (blocks_num >= 4 ? blocks_num - 4 : blocks_num) + seq + 1);
 
@@ -1261,7 +1316,6 @@ void DecodePackage<PointT>::UseDecodeScopeMiniA2_192(char* udpData, std::vector<
 				pointCloud.push_back(std::move(basic_point));
 			}
 			*/
-			seq++;
 		}
 	}
 }
@@ -1311,6 +1365,8 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 		{
 			double hexHorAngle = TwoHextoInt(udpData[36 + offset_block + seq * 10], udpData[37 + offset_block + seq * 10]);
 			double horAngle = hexHorAngle * 0.01;
+
+			if (0 == seq) CheckLostPacket(horAngle, mirror);
 			
 			//x、y、z
 			double x_t = 0, y_t = 0, z_t = 0;
@@ -1383,13 +1439,13 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 			double L_1 = hexL1 * 0.005;
 			unsigned char hexChar1 = udpData[42 + offset_block + seq * 10];
 			unsigned short hexPulse1 = hexChar1;
-			double pulse_1 = hexPulse1 * 0.25;
+			double pulse_1 = hexPulse1;
 
 			double hexL2 = TwoHextoInt(udpData[43 + offset_block + seq * 10], udpData[44 + offset_block + seq * 10]);
 			double L_2 = hexL2 * 0.005; //
 			unsigned char hexChar2 = udpData[45 + offset_block + seq * 10];
 			unsigned short hexPulse2 = hexChar2;
-			double pulse_2 = hexPulse2 * 0.25;
+			double pulse_2 = hexPulse2;
 
 
 			DecodePackage::TWPointData basic_point;
@@ -1404,10 +1460,8 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 				basic_point.x = L_1 * x_t + x_move;
 				basic_point.y = L_1 * y_t + y_move;
 				basic_point.z = L_1 * z_t + z_move;
-
 				basic_point.distance = L_1;
-				int tmpIntensity = (int)((m_kValue * pulse_1 + m_bValue)* 256.0 * 0.06667 + 0.5);
-				basic_point.pulse = tmpIntensity > 255 ? 255:tmpIntensity;
+				basic_point.pulse = pulse_1;
 				basic_point.echo = 1;/*  */
 				basic_point.t_sec = blockSecond;
 				basic_point.t_usec = blockMicrosecond;
@@ -1423,8 +1477,7 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 				basic_point.z = L_2 * z_t + z_move;
 
 				basic_point.distance = L_2;
-				int tmpIntensity = (int)((m_kValue * pulse_2 + m_bValue)* 256.0 * 0.06667 + 0.5);
-				basic_point.pulse = tmpIntensity > 255 ? 255:tmpIntensity;
+				basic_point.pulse = pulse_2;
 				basic_point.echo = 2;
 				basic_point.t_sec = blockSecond;
 				basic_point.t_usec = blockMicrosecond;
@@ -1631,7 +1684,7 @@ void DecodePackage<PointT>::DecodeTensorPro(char* udpData, unsigned int t_sec, u
 			m_pointCloudPtr->stamp = (uint64_t)(last_sec) * 1000 * 1000 + last_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
-			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
+			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr, m_bLostPacket);
 
 			//create
 			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
@@ -1681,7 +1734,7 @@ void DecodePackage<PointT>::DecodeTensorPro_echo2(char* udpData, unsigned int t_
 			m_pointCloudPtr->stamp = (uint64_t)(last_sec) * 1000 * 1000 + last_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
-			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
+			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr, m_bLostPacket);
 
 			//create
 			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
@@ -1731,7 +1784,7 @@ void DecodePackage<PointT>::DecodeTensorPro0332(char* udpData, unsigned int t_se
 			m_pointCloudPtr->stamp = (uint64_t)(last_sec) * 1000 * 1000 + last_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
-			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
+			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr, m_bLostPacket);
 
 			//create
 			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
@@ -1781,7 +1834,7 @@ void DecodePackage<PointT>::DecodeScope(char* udpData)
 			m_pointCloudPtr->stamp = (uint64_t)(last_sec) * 1000 * 1000 + last_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
-			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
+			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr, m_bLostPacket);
 
 			//create
 			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
@@ -1831,7 +1884,7 @@ void DecodePackage<PointT>::DecodeScope192(char* udpData)
 			m_pointCloudPtr->stamp = (uint64_t)(last_sec) * 1000 * 1000 + last_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
-			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
+			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr, m_bLostPacket);
 
 			//create
 			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
@@ -1881,7 +1934,7 @@ void DecodePackage<PointT>::DecodeDuetto(char* udpData)
 			m_pointCloudPtr->stamp = (uint64_t)(last_sec) * 1000 * 1000 + last_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
-			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
+			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr, m_bLostPacket);
 
 			//create
 			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
@@ -1932,7 +1985,7 @@ void DecodePackage<PointT>::DecodeScopeMiniA2_192(char* udpData)
 			m_pointCloudPtr->stamp = (uint64_t)(last_sec) * 1000 * 1000 + last_usec;
 
 			std::lock_guard<std::mutex> lock(*m_mutex);
-			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr);
+			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr, m_bLostPacket);
 
 			//create
 			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
@@ -1940,7 +1993,7 @@ void DecodePackage<PointT>::DecodeScopeMiniA2_192(char* udpData)
 			continue;
 		}
 
-		if (oriPoint.angle <m_startAngle || oriPoint.angle > m_endAngle) continue;
+		if (oriPoint.angle < m_startAngle || oriPoint.angle > m_endAngle) continue;
 
 		if (oriPoint.distance <= 0) continue;
 
