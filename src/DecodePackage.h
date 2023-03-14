@@ -101,6 +101,7 @@ public:
 	void SetCorrectionAngleToTSP0332(float angle1, float angle2);
 	void SetCorrectionAngleToScope192(float angle1, float angle2, float angle3);
 	void SetCorrectionAngleToScopeMiniA2_192(float angle1, float angle2, float angle3);
+	void SetTransform(float rotateX, float rotateY, float rotateZ, float moveX, float moveY, float moveZ);
 	void SetMutex(std::mutex* mutex){ m_mutex = mutex; }
 
 private:
@@ -134,12 +135,13 @@ protected:
 	virtual void ProcessPointCloud(){};
 
 protected:
-	int FourHexToInt(unsigned char high, unsigned char highmiddle, unsigned char middle, unsigned char low);
-	float FourHexToFloat(unsigned char high, unsigned char highmiddle, unsigned char middle, unsigned char low);
-	int TwoHextoInt(unsigned char high, unsigned char low);
-	int GetDuettoBlockNumber(double angle, int mirror, int lORr);
-	bool IsEqualityFloat3(const double value1, const double value2);
-	bool IsEqualityFloat5(const double value1, const double value2);
+	inline int FourHexToInt(unsigned char high, unsigned char highmiddle, unsigned char middle, unsigned char low);
+	inline float FourHexToFloat(unsigned char high, unsigned char highmiddle, unsigned char middle, unsigned char low);
+	inline int TwoHextoInt(unsigned char high, unsigned char low);
+	inline int GetDuettoBlockNumber(double angle, int mirror, int lORr);
+	inline bool IsEqualityFloat3(const double value1, const double value2);
+	inline bool IsEqualityFloat5(const double value1, const double value2);
+	inline void CalculateRotateAllPointCloud(TWPointData& point);
 
 public:
 	double m_startAngle = 30.0;
@@ -152,6 +154,17 @@ protected:
 	double m_calSimple = 500 * 2.997924 / 10.f / 16384.f / 2;
 
 	int m_blockNumberForDuetto[6] = {1/*RA*/, 2001/*RB*/, 4001/*RC*/, 3001/*LA*/, 5001/*LB*/, 1001/*LC*/ };
+
+	//transform
+	double m_transformSinRotateX = 0;
+	double m_transformCosRotateX = 1;
+	double m_transformSinRotateY = 0;
+	double m_transformCosRotateY = 1;
+	double m_transformSinRotateZ = 0;
+	double m_transformCosRotateZ = 1;
+	double m_transformMoveX = 0;
+	double m_transformMoveY = 0;
+	double m_transformMoveZ = 0;
 
 	//Tensor
 	double m_verticalChannelsAngle_Tensor16[16] =
@@ -319,6 +332,20 @@ void DecodePackage<PointT>::SetCorrectionAngleToScopeMiniA2_192(float angle1, fl
 }
 
 template <typename PointT>
+void DecodePackage<PointT>::SetTransform(float rotateX, float rotateY, float rotateZ, float moveX, float moveY, float moveZ)
+{
+	m_transformSinRotateX = sin(rotateX * m_calRA);
+	m_transformCosRotateX = cos(rotateX * m_calRA);
+	m_transformSinRotateY = sin(rotateY * m_calRA);
+	m_transformCosRotateY = cos(rotateY * m_calRA);
+	m_transformSinRotateZ = sin(rotateZ * m_calRA);
+	m_transformCosRotateZ = cos(rotateZ * m_calRA);
+	m_transformMoveX = moveX;
+	m_transformMoveY = moveY;
+	m_transformMoveZ = moveZ;
+}
+
+template <typename PointT>
 void DecodePackage<PointT>::SetCorrectionAngleToTSP0332(float angle1, float angle2)
 {
 	m_skewing_tsp_Angle[0] = angle1;
@@ -332,7 +359,7 @@ void DecodePackage<PointT>::SetCorrectionAngleToTSP0332(float angle1, float angl
 }
 
 template <typename PointT>
-int DecodePackage<PointT>::GetDuettoBlockNumber(double angle, int mirror, int lORr)
+inline int DecodePackage<PointT>::GetDuettoBlockNumber(double angle, int mirror, int lORr)
 {
 	if (angle < m_startAngle && 1 == mirror) 
 	{
@@ -351,7 +378,7 @@ int DecodePackage<PointT>::GetDuettoBlockNumber(double angle, int mirror, int lO
 }
 
 template <typename PointT>
-int DecodePackage<PointT>::TwoHextoInt(unsigned char high, unsigned char low)
+inline int DecodePackage<PointT>::TwoHextoInt(unsigned char high, unsigned char low)
 {
 	int addr = low & 0xFF;
 	addr |= ((high << 8) & 0XFF00);
@@ -359,7 +386,7 @@ int DecodePackage<PointT>::TwoHextoInt(unsigned char high, unsigned char low)
 }
 
 template <typename PointT>
-int DecodePackage<PointT>::FourHexToInt(unsigned char high, unsigned char highmiddle, unsigned char middle, unsigned char low)
+inline int DecodePackage<PointT>::FourHexToInt(unsigned char high, unsigned char highmiddle, unsigned char middle, unsigned char low)
 {
 	int addr = low & 0xFF;
 	addr |= ((middle << 8) & 0xFF00);
@@ -369,7 +396,7 @@ int DecodePackage<PointT>::FourHexToInt(unsigned char high, unsigned char highmi
 }
 
 template <typename PointT>
-float DecodePackage<PointT>::FourHexToFloat(unsigned char high, unsigned char highmiddle, unsigned char middle, unsigned char low)
+inline float DecodePackage<PointT>::FourHexToFloat(unsigned char high, unsigned char highmiddle, unsigned char middle, unsigned char low)
 {
 	unsigned char sz_float[4] = {low, middle, highmiddle, high};
 	float addr = 0;
@@ -378,17 +405,43 @@ float DecodePackage<PointT>::FourHexToFloat(unsigned char high, unsigned char hi
 }
 
 template <typename PointT>
-bool DecodePackage<PointT>::IsEqualityFloat3(const double value1, const double value2)
+inline bool DecodePackage<PointT>::IsEqualityFloat3(const double value1, const double value2)
 {
 	return fabs(value1 - value2) < 0.001;
 }
 
 template <typename PointT>
-bool DecodePackage<PointT>::IsEqualityFloat5(const double value1, const double value2)
+inline bool DecodePackage<PointT>::IsEqualityFloat5(const double value1, const double value2)
 {
 	return fabs(value1 - value2) < 0.00001;
 }
 
+template <typename PointT>
+inline void DecodePackage<PointT>::CalculateRotateAllPointCloud(TWPointData& point)
+{
+	double x_tmp1 = point.x;
+	double y_tmp1 = point.y;
+	double z_tmp1 = point.z;
+
+	//绕X旋转
+	double x_tmp2 = x_tmp1;
+	double y_tmp2 = y_tmp1 * m_transformCosRotateX - z_tmp1 * m_transformSinRotateX;
+	double z_tmp2 = y_tmp1 * m_transformSinRotateX + z_tmp1 * m_transformCosRotateX;
+
+	//绕Y旋转
+	double x_tmp3 = z_tmp2 * m_transformSinRotateY + x_tmp2 * m_transformCosRotateY;
+	double y_tmp3 = y_tmp2;
+	double z_tmp3 = z_tmp2 * m_transformCosRotateY - x_tmp2 * m_transformSinRotateY;
+
+	//绕Z旋转
+	point.x = x_tmp3 * m_transformCosRotateZ - y_tmp3 * m_transformSinRotateZ;
+	point.y = x_tmp3 * m_transformSinRotateZ + y_tmp3 * m_transformCosRotateZ;
+	point.z = z_tmp3;
+
+	point.x += m_transformMoveX;
+	point.y += m_transformMoveY;
+	point.z += m_transformMoveZ;
+}
 
 template <typename PointT>
 inline typename std::enable_if<!PointT_HasMember(PointT, x)>::type setX(PointT& point, const float& value)
@@ -540,6 +593,17 @@ void DecodePackage<PointT>::InitBasicVariables()
 {
 	run_decode.store(false);
 	run_exit.store(false);
+
+	//transform
+	m_transformSinRotateX = sin(0 * m_calRA);
+	m_transformCosRotateX = cos(0 * m_calRA);
+	m_transformSinRotateY = sin(0 * m_calRA);
+	m_transformCosRotateY = cos(0 * m_calRA);
+	m_transformSinRotateZ = sin(0 * m_calRA);
+	m_transformCosRotateZ = cos(0 * m_calRA);
+	m_transformMoveX = 0;
+	m_transformMoveY = 0;
+	m_transformMoveZ = 0;
 
 	//Scope-192
 	m_skewing_sin_scope[0] = sin(m_skewing_scope_Angle_Correct[0] * m_calRA);
@@ -1673,7 +1737,7 @@ void DecodePackage<PointT>::DecodeTensorPro(char* udpData, unsigned int t_sec, u
 	int pointSize = pointData.size();
 	for (int i = 0; i < pointSize; i++)
 	{
-		const DecodePackage::TWPointData& oriPoint = pointData[i];
+		DecodePackage::TWPointData& oriPoint = pointData[i];
 
 		if (oriPoint.angle < m_startAngle && m_pointCloudPtr->Size() != 0)
 		{
@@ -1695,6 +1759,8 @@ void DecodePackage<PointT>::DecodeTensorPro(char* udpData, unsigned int t_sec, u
 		if (oriPoint.angle < m_startAngle || oriPoint.angle > m_endAngle) continue;
 
 		if (oriPoint.distance <= 0) continue;
+
+		CalculateRotateAllPointCloud(oriPoint);
 
 		PointT basic_point;
 		setX(basic_point, static_cast<float>(oriPoint.x));
@@ -1723,7 +1789,7 @@ void DecodePackage<PointT>::DecodeTensorPro_echo2(char* udpData, unsigned int t_
 	int pointSize = pointData.size();
 	for (int i = 0; i < pointSize; i++)
 	{
-		const DecodePackage::TWPointData& oriPoint = pointData[i];
+		DecodePackage::TWPointData& oriPoint = pointData[i];
 
 		if (oriPoint.angle < m_startAngle && m_pointCloudPtr->Size() != 0)
 		{
@@ -1745,6 +1811,8 @@ void DecodePackage<PointT>::DecodeTensorPro_echo2(char* udpData, unsigned int t_
 		if (oriPoint.angle <m_startAngle || oriPoint.angle > m_endAngle) continue;
 
 		if (oriPoint.distance <= 0) continue;
+
+		CalculateRotateAllPointCloud(oriPoint);
 
 		PointT basic_point;
 		setX(basic_point, static_cast<float>(oriPoint.x));
@@ -1773,7 +1841,7 @@ void DecodePackage<PointT>::DecodeTensorPro0332(char* udpData, unsigned int t_se
 	int pointSize = pointData.size();
 	for (int i = 0; i < pointSize; i++)
 	{
-		const DecodePackage::TWPointData& oriPoint = pointData[i];
+		DecodePackage::TWPointData& oriPoint = pointData[i];
 
 		if (oriPoint.angle < m_startAngle && 0 == oriPoint.mirror && m_pointCloudPtr->Size() != 0)
 		{
@@ -1795,6 +1863,8 @@ void DecodePackage<PointT>::DecodeTensorPro0332(char* udpData, unsigned int t_se
 		if (oriPoint.angle <m_startAngle || oriPoint.angle > m_endAngle) continue;
 
 		if (oriPoint.distance <= 0) continue;
+
+		CalculateRotateAllPointCloud(oriPoint);
 
 		PointT basic_point;
 		setX(basic_point, static_cast<float>(oriPoint.x));
@@ -1823,7 +1893,7 @@ void DecodePackage<PointT>::DecodeScope(char* udpData)
 	int pointSize = pointData.size();
 	for (int i = 0; i < pointSize; i++)
 	{
-		const DecodePackage::TWPointData& oriPoint = pointData[i];
+		DecodePackage::TWPointData& oriPoint = pointData[i];
 
 		if (oriPoint.angle < m_startAngle && m_pointCloudPtr->Size() != 0)
 		{
@@ -1845,6 +1915,8 @@ void DecodePackage<PointT>::DecodeScope(char* udpData)
 		if (oriPoint.angle <m_startAngle || oriPoint.angle > m_endAngle) continue;
 
 		if (oriPoint.distance <= 0) continue;
+
+		CalculateRotateAllPointCloud(oriPoint);
 
 		PointT basic_point;
 		setX(basic_point, static_cast<float>(oriPoint.x));
@@ -1873,7 +1945,7 @@ void DecodePackage<PointT>::DecodeScope192(char* udpData)
 	int pointSize = pointData.size();
 	for (int i = 0; i < pointSize; i++)
 	{
-		const DecodePackage::TWPointData& oriPoint = pointData[i];
+		DecodePackage::TWPointData& oriPoint = pointData[i];
 
 		if (oriPoint.angle < m_startAngle && 0 == oriPoint.mirror && m_pointCloudPtr->Size() != 0)
 		{
@@ -1895,6 +1967,8 @@ void DecodePackage<PointT>::DecodeScope192(char* udpData)
 		if (oriPoint.angle <m_startAngle || oriPoint.angle > m_endAngle) continue;
 
 		if (oriPoint.distance <= 0) continue;
+
+		CalculateRotateAllPointCloud(oriPoint);
 
 		PointT basic_point;
 		setX(basic_point, static_cast<float>(oriPoint.x));
@@ -1923,7 +1997,7 @@ void DecodePackage<PointT>::DecodeDuetto(char* udpData)
 	int pointSize = pointData.size();
 	for (int i=0; i<pointSize; i++)
 	{
-		const DecodePackage::TWPointData& oriPoint = pointData[i];
+		DecodePackage::TWPointData& oriPoint = pointData[i];
 		
 		if (oriPoint.angle < m_startAngle && 1 == oriPoint.mirror && m_pointCloudPtr->Size() != 0)
 		{
@@ -1945,6 +2019,8 @@ void DecodePackage<PointT>::DecodeDuetto(char* udpData)
 		if (oriPoint.angle <m_startAngle || oriPoint.angle > m_endAngle || oriPoint.distance <= 0) continue;
 
 		if (oriPoint.distance <= 0) continue;
+
+		CalculateRotateAllPointCloud(oriPoint);
 
 		PointT basic_point;
 		setX(basic_point, static_cast<float>(oriPoint.x));
@@ -1974,7 +2050,7 @@ void DecodePackage<PointT>::DecodeScopeMiniA2_192(char* udpData)
 	int pointSize = pointData.size();
 	for (int i = 0; i < pointSize; i++)
 	{
-		const DecodePackage::TWPointData& oriPoint = pointData[i];
+		DecodePackage::TWPointData& oriPoint = pointData[i];
 
 		if (oriPoint.angle < m_startAngle && 0 == oriPoint.mirror && m_pointCloudPtr->Size() != 0)
 		{
@@ -1996,6 +2072,8 @@ void DecodePackage<PointT>::DecodeScopeMiniA2_192(char* udpData)
 		if (oriPoint.angle < m_startAngle || oriPoint.angle > m_endAngle) continue;
 
 		if (oriPoint.distance <= 0) continue;
+
+		CalculateRotateAllPointCloud(oriPoint);
 
 		PointT basic_point;
 		setX(basic_point, static_cast<float>(oriPoint.x));
