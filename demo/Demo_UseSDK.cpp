@@ -48,7 +48,7 @@ struct PointXYZ
 	unsigned int t_usec;        /* remaining microseconds */
 };
 
-void pointCloudCallback(TWPointCloud<PointXYZ>::Ptr pointCloud)
+void pointCloudCallback(TWPointCloud<PointXYZ>::Ptr pointCloud, bool lostPacket)
 {
 	/*
 	*The point cloud struct uses a smart pointer. 
