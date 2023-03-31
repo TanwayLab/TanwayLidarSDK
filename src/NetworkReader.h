@@ -41,6 +41,7 @@ public:
 	~NetworkReader();
 
 	void Start();
+	void Stop();
 
 	void ThreadProcessPointCloud();
 	void ThreadProcessGPS();

@@ -168,6 +168,7 @@ public:
 	void PausePcap(bool pause);
 
 	void Start();
+	void Stop();
 
 	void ThreadLoadProcess();
 	void RegExceptionCallback(const std::function<void(const TWException&)>& callback);

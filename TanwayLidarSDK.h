@@ -104,6 +104,10 @@ public:
 	* run sdk
 	*/
 	void Start();
+	/*
+	* stop sdk
+	*/
+	void Stop();
 
 private:
 	std::shared_ptr<PackageCache> m_packageCache;
@@ -231,4 +235,15 @@ void TanwayLidarSDK<PointT>::Start()
 		m_pcapReaderPtr->Start();
 
 	m_decodePackagePtr->Start();
+}
+
+template <typename PointT>
+void TanwayLidarSDK<PointT>::Stop()
+{
+	if (m_networkReaderPtr)
+		m_networkReaderPtr->Stop();
+	if (m_pcapReaderPtr)
+		m_pcapReaderPtr->Stop();
+
+	m_decodePackagePtr->Stop();
 }

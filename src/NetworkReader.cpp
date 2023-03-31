@@ -45,20 +45,7 @@ NetworkReader::NetworkReader(TWLidarType lidarType, std::string lidarIP, std::st
 
 NetworkReader::~NetworkReader()
 {
-	run_read.store(false);
-
-	while (!run_exit_pcloud)
-	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
-	}
-	while (!run_exit_gps)
-	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
-	}
-	while (!run_exit_dif)
-	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
-	}
+	Stop();
 }
 
 void NetworkReader::Start()
@@ -78,6 +65,28 @@ void NetworkReader::Start()
 
 	run_exit_pcloud.store(false);
 	std::thread(std::bind(&NetworkReader::ThreadProcessPointCloud, this)).detach();
+}
+
+void NetworkReader::Stop()
+{
+	run_read.store(false);
+
+	while (!run_exit_pcloud)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	}
+	while (!run_exit_gps)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	}
+	while (!run_exit_dif)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	}
+
+#ifdef _WIN32
+	WSACleanup();
+#endif
 }
 
 void NetworkReader::ThreadProcessPointCloud()
@@ -175,6 +184,13 @@ void NetworkReader::ThreadProcessPointCloud()
 		m_packageCache.PushBackPackage(udp_data);
 
 	}
+
+#ifdef __linux__
+	close(recvSocket);
+#elif _WIN32
+	closesocket(recvSocket);
+#endif
+
 	run_exit_pcloud.store(true);
 
 	USE_EXCEPTION_TIPS(TWException::TWEC_TIPS_EXIT_POINT, std::string("The point cloud data receiver thread has exited!"));
@@ -273,6 +289,13 @@ void NetworkReader::ThreadProcessGPS()
 		m_packageCache.PushBackPackage(udp_data);
 
 	}
+
+#ifdef __linux__
+	close(recvSocket);
+#elif _WIN32
+	closesocket(recvSocket);
+#endif
+
 	run_exit_gps.store(true);
 
 	USE_EXCEPTION_TIPS(TWException::TWEC_TIPS_EXIT_GPS, std::string("The gps data receiver thread has exited!"));
@@ -375,6 +398,12 @@ void NetworkReader::ThreadProcessDIF()
 		m_packageCache.PushBackPackage(udp_data);
 
 	}
+#ifdef __linux__
+	close(recvSocket);
+#elif _WIN32
+	closesocket(recvSocket);
+#endif
+	
 	run_exit_dif.store(true);
 
 	USE_EXCEPTION_TIPS(TWException::TWEC_TIPS_EXIT_DIF, std::string("The dif data receiver thread has exited!"));

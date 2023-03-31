@@ -127,9 +127,22 @@ int main()
 	
 
 	//quit
+	bool run_t = false;
 	while (true)
 	{
-		std::this_thread::sleep_for(std::chrono::seconds(1));
+		std::this_thread::sleep_for(std::chrono::seconds(10));
+		if (run_t)
+		{
+			lidar.Start();
+			std::cout << "===========: start()" << std::endl;
+			run_t = false;
+		}
+		else
+		{
+			lidar.Stop();
+			std::cout << "===========: stop()" << std::endl;
+			run_t = true;
+		}
 	}
 
     return 0;

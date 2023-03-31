@@ -91,6 +91,7 @@ public:
 	virtual ~DecodePackage();
 
 	void Start();
+	void Stop();
 	void RegPointCloudCallback(const std::function<void(typename TWPointCloud<PointT>::Ptr, bool)>& callback);
 	void RegGPSCallback(const std::function<void(const std::string&)>& callback);
 	void RegIMUDataCallback(const std::function<void(const TWIMUData&)>& callback);
@@ -582,6 +583,17 @@ void DecodePackage<PointT>::Start()
 }
 
 template <typename PointT>
+void DecodePackage<PointT>::Stop()
+{
+	run_decode.store(false);
+
+	while (!run_exit)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	}
+}
+
+template <typename PointT>
 DecodePackage<PointT>::DecodePackage(std::shared_ptr<PackageCache> packageCachePtr, TWLidarType lidarType, std::mutex* mutex): 
 	m_packageCachePtr(packageCachePtr), m_lidarType(lidarType), m_mutex(mutex)
 {
@@ -687,13 +699,7 @@ void DecodePackage<PointT>::InitBasicVariables()
 template <typename PointT>
 DecodePackage<PointT>::~DecodePackage()
 {
-	//std::this_thread::sleep_for(std::chrono::seconds(1));
-	run_decode.store(false);
-
-	while (!run_exit)
-	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
-	}
+	Stop();
 }
 
 template <typename PointT>
