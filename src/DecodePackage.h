@@ -119,11 +119,13 @@ private:
 	void DecodeScopeMiniA2_192(char* udpData);
 	void DecodeTempoA2(char* udpData);
 	void DecodeDuetto(char* udpData);
-	
+	void DecodeTSP48Polar(char* udpData);
+
 
 	void DecodeGPSData(char* udpData);	//decode gps date
-	void DecodeDIFData(char* udpData);
+	void DecodeDIFData_Duetto(char* udpData);
 	void DecodeIMUData(char* udpData);
+	void DecodeDIFData_TSP48Polar(char* udpData);
 
 
 protected:
@@ -135,6 +137,7 @@ protected:
 	virtual void UseDecodeScopeMiniA2_192(char* udpData, std::vector<TWPointData>& pointCloud);
 	virtual void UseDecodeTempoA2(char* udpData, std::vector<TWPointData>& pointCloud);
 	virtual void UseDecodeDuetto(char* udpData, std::vector<TWPointData>& pointCloud);
+	virtual void UseDecodeTSP48Polar(char* udpData, std::vector<TWPointData>& pointCloud);
 
 	virtual void ProcessPointCloud(){};
 
@@ -244,6 +247,18 @@ protected:
 	double duettoPivotVector[3] = {0, 0, 1};
 	double m_correction_movement_L[3] = {0.017, 0, 0};
 	double m_correction_movement_R[3] = {-0.017, 0, 0};
+
+	//TSP48-Polar
+	float m_verticalChannelsAngle_TSP48[16] =
+	{
+		-5.274283f, -4.574258f,	-3.872861f, -3.1703f, -2.466783f, -1.762521f, -1.057726f, -0.352611f,
+		0.352611f, 1.057726f, 1.762521f, 2.466783f, 3.1703f, 3.872861f, 4.574258f, 5.274283f
+	};
+	float m_verticalChannelAngle_TSP48_cos_vA_RA[16] = { 0.f };
+	float m_verticalChannelAngle_TSP48_sin_vA_RA[16] = { 0.f };
+	double m_skewing_tsp48_Angle[3] = { -4.5, 0.0, 4.5 };
+	double m_skewing_sin_tsp48[3];
+	double m_skewing_cos_tsp48[3];
 
 private:
 	int m_preBlockCount = 0;
@@ -694,6 +709,19 @@ void DecodePackage<PointT>::InitBasicVariables()
 	m_rotate_duetto_sinR = sin(m_rightMoveAngle * m_calRA);  //
 	m_rotate_duetto_cosR = cos(m_rightMoveAngle * m_calRA);  //
 
+	//LT_TSP48_Polar
+	for (int i = 0; i < 16; i++)
+	{
+		double vA_L = m_verticalChannelsAngle_TSP48[i];
+		m_verticalChannelAngle_TSP48_cos_vA_RA[i] = cos(vA_L * m_calRA);
+		m_verticalChannelAngle_TSP48_sin_vA_RA[i] = sin(vA_L * m_calRA);
+	}
+	for (int i=0; i<3; i++)
+	{
+		m_skewing_sin_tsp48[i] = sin(m_skewing_tsp48_Angle[i] * m_calRA);
+		m_skewing_cos_tsp48[i] = cos(m_skewing_tsp48_Angle[i] * m_calRA);
+	}
+
 }
 
 template <typename PointT>
@@ -775,7 +803,7 @@ void DecodePackage<PointT>::BeginDecodePackageData()
 			if (packagePtr->m_length == 1348)
 				DecodeDuetto(packagePtr->m_szData);
 			else if (packagePtr->m_length == 1024)
-				DecodeDIFData(packagePtr->m_szData);
+				DecodeDIFData_Duetto(packagePtr->m_szData);
 			else if (packagePtr->m_length == 128)
 				DecodeIMUData(packagePtr->m_szData);
 			else
@@ -794,6 +822,16 @@ void DecodePackage<PointT>::BeginDecodePackageData()
 		case LT_TempoA2:
 			if (packagePtr->m_length == 1120)
 				DecodeTempoA2(packagePtr->m_szData);
+			else
+			{
+				USE_EXCEPTION_TIPS(TWException::TWEC_TIPS_NOMATCH_DEVICE, "Lidar type and protocol data do not match!");
+			}
+			break;
+		case LT_TSP48_Polar:
+			if (packagePtr->m_length == 1348)
+				DecodeTSP48Polar(packagePtr->m_szData);
+			else if (packagePtr->m_length == 1024)
+				DecodeDIFData_TSP48Polar(packagePtr->m_szData);
 			else
 			{
 				USE_EXCEPTION_TIPS(TWException::TWEC_TIPS_NOMATCH_DEVICE, "Lidar type and protocol data do not match!");
@@ -1703,6 +1741,126 @@ void DecodePackage<PointT>::UseDecodeDuetto(char* udpData, std::vector<TWPointDa
 	}
 }
 
+
+template <typename PointT>
+void DecodePackage<PointT>::UseDecodeTSP48Polar(char* udpData, std::vector<TWPointData>& pointCloud)
+{
+	//ptp
+	unsigned int frameSecond = FourHexToInt(udpData[13], udpData[14], udpData[15], udpData[16]);
+	double frameMicrosecond = FourHexToInt(udpData[17], udpData[18], udpData[19], udpData[20]) * 0.1;
+
+	for (int blocks_num = 0; blocks_num < 8; blocks_num++)
+	{
+		int offset_block = blocks_num * 164;
+
+		//ptp
+		int offsetMicrosecond = TwoHextoInt(udpData[32 + offset_block], udpData[33 + offset_block]);
+		double totalMicrosecond = frameMicrosecond + offsetMicrosecond*0.1;
+		unsigned int blockSecond = (totalMicrosecond >= 1000000)? (frameSecond+1) : frameSecond;
+		unsigned int blockMicrosecond = (totalMicrosecond >= 1000000)? (unsigned int)(totalMicrosecond - 1000000) : (unsigned int)totalMicrosecond;
+
+		//mirror
+		unsigned char  hexMirror = udpData[35 + offset_block];
+		hexMirror = hexMirror << 5;
+		unsigned short mirror = hexMirror >> 6;
+
+		//
+		double cos_delta = m_skewing_cos_tsp48[mirror];
+		double sin_delta = m_skewing_sin_tsp48[mirror];
+
+		for (int seq = 0; seq < 16; seq++)
+		{
+			
+			//2Byte 36-37
+			double hexHorAngle = TwoHextoInt(udpData[36 + offset_block + seq * 10], udpData[37 + offset_block + seq * 10]);
+			double horAngle = hexHorAngle * 0.01;
+			
+			//L1 2Byte 40-41
+			double hexL1 = TwoHextoInt(udpData[40 + offset_block + seq * 10], udpData[41 + offset_block + seq * 10]);
+			double L_1 = hexL1 * m_calSimpleFPGA;
+
+			//intensity 0-255
+			unsigned char hexChar1 = udpData[42 + offset_block + seq * 10];
+			unsigned short hexPulse1 = hexChar1;
+			double pulse_1 = hexPulse1;
+			
+			/*
+			//L2 2Byte
+			double hexL2 = TwoHextoInt(udpData[43 + offset_block + seq * 10], udpData[44 + offset_block + seq * 10]);
+			double L_2 = hexL2 * m_calSimpleFPGA;
+
+			//intensity 0-255
+			unsigned char hexChar2 = udpData[45 + offset_block + seq * 10];
+			unsigned short hexPulse2 = hexChar2;
+			double pulse_2 = hexPulse2;
+			*/
+
+			double theta = (180 - horAngle) *0.5;
+			double sin_theta = sin(theta * m_calRA);
+			double cos_theta = cos(theta * m_calRA);
+
+			double cos_beta = m_verticalChannelAngle_TSP48_cos_vA_RA[seq];
+			double sin_beta = m_verticalChannelAngle_TSP48_sin_vA_RA[seq];
+
+			double Tr11 = cos_theta;
+			double Tr12 = sin_theta;
+			double Tr13 = 0;
+			double Tr21 = -sin_theta;
+			double Tr22 = cos_theta;
+			double Tr23 = 0;
+			double Tr31 = 0;
+			double Tr32 = 0;
+			double Tr33 = 1;
+
+			double Nx = cos_delta * Tr12 + sin_delta * Tr13;
+			double Ny = cos_delta * Tr22 + sin_delta * Tr23;
+			double Nz = cos_delta * Tr32 + sin_delta * Tr33;
+
+			double x_t = cos_beta * (-1 + 2 * Nx * Nx) - sin_beta * (2 * Nx * Nz);
+			double y_t = cos_beta * (2 * Nx * Ny) - sin_beta * (2 * Ny * Nz);
+			double z_t = cos_beta * (2 * Nx * Nz) + sin_beta * (1 - 2 * Nz * Nz);
+
+			TWPointData basic_point;
+			basic_point.angle = horAngle;
+			basic_point.mirror = mirror;
+			basic_point.left_right = 1;
+			basic_point.channel = mirror * 16 + seq + 1;
+
+			//echo 1
+			{
+				basic_point.x = L_1 * x_t;
+				basic_point.y = L_1 * y_t;
+				basic_point.z = L_1 * z_t;
+
+				basic_point.distance = L_1;
+				basic_point.pulse = pulse_1;
+				basic_point.echo = 1;/*  */
+				basic_point.t_sec = blockSecond;
+				basic_point.t_usec = blockMicrosecond;
+
+				pointCloud.push_back(std::move(basic_point));
+			}
+
+			//echo 2
+			/*
+			{
+				basic_point.x = L_2 * x_t;
+				basic_point.y = L_2 * y_t;
+				basic_point.z = L_2 * z_t;
+
+				basic_point.distance = L_2;
+				basic_point.pulse = pulse_2;
+				basic_point.echo = 2;
+				basic_point.t_sec = blockSecond;
+				basic_point.t_usec = blockMicrosecond;
+
+				pointCloud.push_back(std::move(basic_point));
+			}
+			*/
+		}
+	}
+}
+
 template <typename PointT>
 void DecodePackage<PointT>::DecodeGPSData(char* udpData)
 {
@@ -1752,7 +1910,7 @@ void DecodePackage<PointT>::DecodeGPSData(char* udpData)
 }
 
 template <typename PointT>
-void DecodePackage<PointT>::DecodeDIFData(char* udpData)
+void DecodePackage<PointT>::DecodeDIFData_Duetto(char* udpData)
 {
 	//ABC
 	int hex8_mirrorA = (unsigned char)udpData[508 + 4 * 14 + 1];
@@ -1828,6 +1986,42 @@ void DecodePackage<PointT>::DecodeDIFData(char* udpData)
 	{
 		duettoPivotVector[2] = pivotVectorZ;
 		//std::cout << "PivotVector: Z, " << pivotVectorZ << std::endl;
+	}
+}
+
+
+template <typename PointT>
+void DecodePackage<PointT>::DecodeDIFData_TSP48Polar(char* udpData)
+{
+	//ABC
+	int hex8_mirrorA = (unsigned char)udpData[508 + 4 * 14 + 1];
+	int hex8_mirrorB = (unsigned char)udpData[508 + 4 * 14 + 2];
+	int hex8_mirrorC = (unsigned char)udpData[508 + 4 * 14 + 3];
+
+	float mirrorA = (hex8_mirrorA - 128) * 0.01 + (-4.5);
+	float mirrorB = (hex8_mirrorB - 128) * 0.01 + (0);
+	float mirrorC = (hex8_mirrorC - 128) * 0.01 + (4.5);
+
+	if (!IsEqualityFloat3(mirrorA, m_skewing_tsp48_Angle[0]))
+	{
+		m_skewing_tsp48_Angle[0] = mirrorA;
+		m_skewing_sin_tsp48[0] = sin(m_skewing_tsp48_Angle[0] * m_calRA);
+		m_skewing_cos_tsp48[0] = cos(m_skewing_tsp48_Angle[0] * m_calRA);
+		//std::cout << "TSP48-Polar Mirror: A, " << mirrorA << std::endl;
+	}
+	if (!IsEqualityFloat3(mirrorB, m_skewing_tsp48_Angle[1]))
+	{
+		m_skewing_tsp48_Angle[1] = mirrorB;
+		m_skewing_sin_tsp48[1] = sin(m_skewing_tsp48_Angle[1] * m_calRA);
+		m_skewing_cos_tsp48[1] = cos(m_skewing_tsp48_Angle[1] * m_calRA);
+		//std::cout << "TSP48-Polar Mirror: B, " << mirrorB << std::endl;
+	}
+	if (!IsEqualityFloat3(mirrorC, m_skewing_tsp48_Angle[2]))
+	{
+		m_skewing_tsp48_Angle[2] = mirrorC;
+		m_skewing_sin_tsp48[2] = sin(m_skewing_tsp48_Angle[2] * m_calRA);
+		m_skewing_cos_tsp48[2] = cos(m_skewing_tsp48_Angle[2] * m_calRA);
+		//std::cout << "TSP48-Polar Mirror: C, " << mirrorC << std::endl;
 	}
 }
 
@@ -2289,6 +2483,59 @@ void DecodePackage<PointT>::DecodeTempoA2(char* udpData)
 		setT_sec(basic_point, oriPoint.t_sec);
 		setT_usec(basic_point, oriPoint.t_usec);
 
+		m_pointCloudPtr->PushBack(std::move(basic_point));
+	}
+}
+
+template <typename PointT>
+void DecodePackage<PointT>::DecodeTSP48Polar(char* udpData)
+{
+	std::vector<DecodePackage::TWPointData> pointData;
+	pointData.reserve(300);
+
+	UseDecodeTSP48Polar(udpData, pointData);
+
+	int pointSize = pointData.size();
+	for (int i=0; i<pointSize; i++)
+	{
+		DecodePackage::TWPointData& oriPoint = pointData[i];
+		
+		if (oriPoint.angle < m_startAngle && 1 == oriPoint.mirror && m_pointCloudPtr->Size() != 0)
+		{
+			m_pointCloudPtr->height = 1;
+			m_pointCloudPtr->width = m_pointCloudPtr->Size();
+			unsigned int last_sec = m_pointCloudPtr->m_pointData[m_pointCloudPtr->width - 1].t_sec;
+			unsigned int last_usec = m_pointCloudPtr->m_pointData[m_pointCloudPtr->width - 1].t_usec;
+			m_pointCloudPtr->stamp = (uint64_t)(last_sec) * 1000 * 1000 + last_usec;
+
+			std::lock_guard<std::mutex> lock(*m_mutex);
+			if (m_funcPointCloud) m_funcPointCloud(m_pointCloudPtr, m_bLostPacket);
+
+			//create
+			m_pointCloudPtr = std::make_shared<TWPointCloud<PointT>>();
+			m_pointCloudPtr->Reserve(10000);
+			continue;
+		}
+
+		if (oriPoint.angle <m_startAngle || oriPoint.angle > m_endAngle || oriPoint.distance <= 0) continue;
+
+		if (oriPoint.distance <= 0) continue;
+
+		CalculateRotateAllPointCloud(oriPoint);
+
+		PointT basic_point;
+		setX(basic_point, static_cast<float>(oriPoint.x));
+		setY(basic_point, static_cast<float>(oriPoint.y));
+		setZ(basic_point, static_cast<float>(oriPoint.z));
+		setIntensity(basic_point, static_cast<float>(oriPoint.pulse));
+		setChannel(basic_point, oriPoint.channel);
+		setAngle(basic_point, static_cast<float>(oriPoint.angle));
+		setEcho(basic_point, oriPoint.echo);
+		setColor(basic_point, static_cast<float>(oriPoint.distance));
+		setBlock(basic_point, oriPoint.block);
+		setT_sec(basic_point, oriPoint.t_sec);
+		setT_usec(basic_point, oriPoint.t_usec);
+		
 		m_pointCloudPtr->PushBack(std::move(basic_point));
 	}
 }
