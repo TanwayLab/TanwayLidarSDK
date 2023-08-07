@@ -149,6 +149,7 @@ protected:
 	inline bool IsEqualityFloat3(const double value1, const double value2);
 	inline bool IsEqualityFloat5(const double value1, const double value2);
 	inline void CalculateRotateAllPointCloud(TWPointData& point);
+	inline void JointabcProcess(TWPointData& point);
 
 public:
 	double m_startAngle = 30.0;
@@ -267,6 +268,13 @@ private:
 
 	int g_recvFrameCount = 0;
 	double g_calTimeTotal = 0;
+
+	//48+128+192
+	bool bJointabc = false;
+	double jointabc_node1 = 0.0;
+	double jointabc_node2 = 0.0;
+	int jointabc_one_face = 0; //A=0; B=1; C=2
+	int jointabc_two_face = 3; //A+B=1; A+C=2; B+C=3
 
 
 	//0:LT_TensorLite,1:LT_TensorPro,2:LT_TensorPro_echo2,3:LT_Scope,4:LT_TSP0332,5:LT_Scope192,6:LT_Duetto,7:LT_ScopeMiniA2_192
@@ -463,6 +471,60 @@ inline void DecodePackage<PointT>::CalculateRotateAllPointCloud(TWPointData& poi
 	point.x += m_transformMoveX;
 	point.y += m_transformMoveY;
 	point.z += m_transformMoveZ;
+}
+
+template <typename PointT>
+inline void DecodePackage<PointT>::JointabcProcess(TWPointData& point)
+{
+	bool validPoint = false;
+	double offsetDist = 0.05;
+
+	//<node1
+	if (point.distance < (jointabc_node1 - offsetDist))
+	{
+		if (point.mirror == jointabc_one_face)
+			validPoint = true;
+		else
+			validPoint = false;
+	}
+	//node1-node2
+	else if (point.distance >= (jointabc_node1 + offsetDist) && point.distance < (jointabc_node2 - offsetDist))
+	{
+		if (1 == jointabc_two_face) //A+B
+		{
+			if (0 == point.mirror || 1 == point.mirror)
+				validPoint = true;
+			else
+				validPoint = false;
+		}
+		else if (2 == jointabc_two_face) //A+C
+		{
+			if (0 == point.mirror || 2 == point.mirror)
+				validPoint = true;
+			else
+				validPoint = false;
+		}
+		else if (3 == jointabc_two_face) //B+C
+		{
+			if (1 == point.mirror || 2 == point.mirror)
+				validPoint = true;
+			else
+				validPoint = false;
+		}
+	}
+	//>node2
+	else
+	{
+		validPoint = true;
+	}
+	if (!validPoint)
+	{
+		point.distance = 0;
+		point.pulse = 0;
+		point.x = 0;
+		point.y = 0;
+		point.z = 0;
+	}
 }
 
 template <typename PointT>
@@ -2468,6 +2530,9 @@ void DecodePackage<PointT>::DecodeTempoA2(char* udpData)
 		if (oriPoint.angle < m_startAngle || oriPoint.angle > m_endAngle) continue;
 
 		if (oriPoint.distance <= 0) continue;
+
+		//48+128+192
+		if (bJointabc) JointabcProcess(oriPoint);
 
 		CalculateRotateAllPointCloud(oriPoint);
 
