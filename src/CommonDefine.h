@@ -58,7 +58,10 @@ enum TWLidarType
 	LT_Duetto,			//6
 	LT_ScopeMiniA2_192,	//7
 	LT_TempoA2,			//8
-	LT_TSP48_Polar,		//9
+	LT_Tensor48_Polar,		//9
+	LT_Tensor48_Depth,		//10
+	LT_Scope256_Polar,		//11
+	LT_Scope256_Depth,		//12
 	LT_Total
 };
 

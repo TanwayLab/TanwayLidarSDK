@@ -57,7 +57,7 @@ void NetworkReader::Start()
 		run_exit_gps.store(false);
 		std::thread(std::bind(&NetworkReader::ThreadProcessGPS, this)).detach();
 	}
-	if (LT_Duetto == m_lidarType || LT_TSP48_Polar == m_lidarType)
+	if (LT_Duetto == m_lidarType || LT_Tensor48_Polar == m_lidarType)
 	{
 		run_exit_dif.store(false);
 		std::thread(std::bind(&NetworkReader::ThreadProcessDIF, this)).detach();
