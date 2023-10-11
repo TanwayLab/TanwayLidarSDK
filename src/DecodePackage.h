@@ -2181,7 +2181,7 @@ void DecodePackage<PointT>::UseDecodeScope256Polar(char* udpData, std::vector<TW
 
 				double Nx = cos_delta * cos_gamma * cos_theta + cos_delta * sin_gamma * sin_theta;
 				double Ny = -1.0 * cos_delta * cos_gamma * sin_theta + cos_delta * sin_gamma * cos_theta;
-				double Nz = -1 * sin_delta;
+				double Nz = sin_delta;
 				//double Nx = -1.0 * sin_delta * sin_theta;
 				//double Ny = -1.0 * sin_delta * cos_theta;
 				//double Nz = cos_delta;
