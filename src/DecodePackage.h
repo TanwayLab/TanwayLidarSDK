@@ -2411,9 +2411,9 @@ void DecodePackage<PointT>::DecodeDIFData_Scope256Polar(char* udpData)
 		double offsetVerAngleR = (((int)(offsetAngle & 0x000001FF)) - 256)*0.01;
 
 		//gamma
-		unsigned int moveAngle = FourHexToInt(udpData[508 + 4 * 30 + 0], udpData[508 + 4 * 30 + 1], udpData[508 + 4 * 30 + 2], udpData[508 + 4 * 30 + 3]);
-		double moveAngleL = (((int)((moveAngle >> 9) & 0x000001FF)))*0.020833;
-		double moveAngleR = (((int)(moveAngle & 0x000001FF)))*0.020833;
+		unsigned int moveAngle = FourHexToInt(udpData[508 + 4 * 31 + 0], udpData[508 + 4 * 31 + 1], udpData[508 + 4 * 31 + 2], udpData[508 + 4 * 31 + 3]);
+		double moveAngleL = (((int)((moveAngle >> 10) & 0x000003FF)))*0.020833;
+		double moveAngleR = (((int)(moveAngle & 0x000003FF)))*0.020833;
 
 		//ABC
 		double mirrorABCAmend[3] = {
@@ -2427,7 +2427,7 @@ void DecodePackage<PointT>::DecodeDIFData_Scope256Polar(char* udpData)
 			m_scp256MoveAngleL = moveAngleL;
 			m_scp256MoveAngleR = moveAngleR;
 
-			std::cout << "Scope256,MoveAngle: " << m_scp256MoveAngleL << "," << m_scp256MoveAngleR << std::endl;
+			//std::cout << "Scope256,MoveAngle: " << m_scp256MoveAngleL << "," << m_scp256MoveAngleR << std::endl;
 
 			m_rotate_scp256L_sin = sin(m_scp256MoveAngleL * m_calRA);
 			m_rotate_scp256L_cos = cos(m_scp256MoveAngleL * m_calRA);
@@ -2441,7 +2441,7 @@ void DecodePackage<PointT>::DecodeDIFData_Scope256Polar(char* udpData)
 			{
 				m_scp256MirrorABCAmend[i] = mirrorABCAmend[i];
 
-				std::cout << "Scope256,Mirror: " << i << "," << m_scp256MirrorABCAmend[i] << std::endl;
+				//std::cout << "Scope256,Mirror: " << i << "," << m_scp256MirrorABCAmend[i] << std::endl;
 
 				m_skewing_sin_scp256[i] = sin(m_scp256MirrorABCAmend[i] * m_calRA);
 				m_skewing_cos_scp256[i] = cos(m_scp256MirrorABCAmend[i] * m_calRA);
@@ -2455,7 +2455,7 @@ void DecodePackage<PointT>::DecodeDIFData_Scope256Polar(char* udpData)
 			m_scp256OffsetVerAngleL = offsetVerAngleL;
 			m_scp256OffsetVerAngleR = offsetVerAngleR;
 
-			std::cout << "Scope256,OffsetVerticalAngle: " << m_scp256OffsetVerAngleL << "," << m_scp256OffsetVerAngleR << std::endl;
+			//std::cout << "Scope256,OffsetVerticalAngle: " << m_scp256OffsetVerAngleL << "," << m_scp256OffsetVerAngleR << std::endl;
 
 			//Scope256
 			for (int i = 0; i < 64; i++) //每通道对应出射光线与水平方向夹角
