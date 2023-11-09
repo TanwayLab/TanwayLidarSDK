@@ -62,6 +62,7 @@ enum TWLidarType
 	LT_Tensor48_Depth,		//10
 	LT_Scope256_Polar,		//11
 	LT_Scope256_Depth,		//12
+	LT_Focus,				//13 
 	LT_Total
 };
 
