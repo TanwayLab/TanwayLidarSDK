@@ -82,6 +82,7 @@ public:
 	void SetCorrectedAngleToScope192(float angle1, float angle2, float angle3);
 	void SetCorrectionAngleToScopeMiniA2_192(float angle1, float angle2, float angle3);
 	void SetTransform(float rotateX, float rotateY, float rotateZ, float moveX, float moveY, float moveZ);
+	void SetJointabc(bool bJointabc, double node1, double node2, int one_face, int two_face); 
 
 	/*
 	*Register the point cloud callback function.
@@ -191,6 +192,12 @@ void TanwayLidarSDK<PointT>::SetCorrectedAngleToTSP0332(float angle1, float angl
 {
 	m_decodePackagePtr->SetCorrectionAngleToTSP0332(angle1, angle2);
 }
+
+template <typename PointT> 
+void TanwayLidarSDK<PointT>::SetJointabc(bool bJointabc, double node1, double node2, int one_face, int two_face) 
+{ 
+	m_decodePackagePtr->SetJointabc(bJointabc, node1, node2, one_face, two_face); 
+} 
 
 template <typename PointT>
 TanwayLidarSDK<PointT>::~TanwayLidarSDK()
