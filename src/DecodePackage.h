@@ -320,6 +320,12 @@ private:
 	int m_jointabc_one_face = 0; //A=0; B=1; C=2
 	int m_jointabc_two_face = 3; //A+B=1; A+C=2; B+C=3
 
+	//crosstalk_filter
+	bool m_crosstalk_filter = true;
+	bool m_crosstalkFilterTempo = false;
+	double m_crosstalkPulse = 40;
+	double m_crosstalkDeletePulse = 10;
+	double m_crosstalkNoDeleteHeigh = 1.0;
 
 	//0:LT_TensorLite,1:LT_TensorPro,2:LT_TensorPro_echo2,3:LT_Scope,4:LT_TSP0332,5:LT_Scope192,6:LT_Duetto,7:LT_ScopeMiniA2_192
 	int TWLidarBlockCount[LT_Total] = {600, 600, 1200, 720*4, 1200, 720*4*3, 960*3, 720*4*3};
@@ -1599,6 +1605,10 @@ void DecodePackage<PointT>::UseDecodeScopeMiniA2_192(char* udpData, std::vector<
 template <typename PointT>
 void DecodePackage<PointT>::UseDecodeTempoA2(char* udpData, std::vector<TWPointData>& pointCloud)
 {
+	TWPointData SEQ_Point[64];
+	bool B_SEQ_Point[64] = {0};
+	float MaxPulse = m_crosstalkPulse;
+
 	double horizontalAngle = 0;
 	//face id
 	unsigned short mirror = 0;
@@ -1614,6 +1624,12 @@ void DecodePackage<PointT>::UseDecodeTempoA2(char* udpData, std::vector<TWPointD
 		int offset = blocks_num * 140;
 		if (0 == blocks_num || 4 == blocks_num)
 		{
+			for (int i = 0; i < 64; i++)
+			{
+				SEQ_Point[i] = TWPointData();
+				B_SEQ_Point[i] = false;
+			}
+
 			//horizontal angle index: 128-131
 			int HextoAngle = FourHexToInt(udpData[offset + 128], udpData[offset + 129], udpData[offset + 130], udpData[offset + 131]);
 			horizontalAngle = HextoAngle  * 0.00001;
@@ -1698,7 +1714,19 @@ void DecodePackage<PointT>::UseDecodeTempoA2(char* udpData, std::vector<TWPointD
 				basic_point.t_sec = blockSecond;
 				basic_point.t_usec = blockMicrosecond;
 
-				pointCloud.push_back(std::move(basic_point));
+				if (m_crosstalk_filter)
+				{
+					if (hexPulse1 * m_calPulseFPGA > MaxPulse && basic_point.z >= m_crosstalkNoDeleteHeigh)
+						B_SEQ_Point[channel - 1] = true;
+					else
+						B_SEQ_Point[channel - 1] = false;
+
+					SEQ_Point[channel - 1] = basic_point;
+				}
+				else
+				{
+					pointCloud.push_back(std::move(basic_point));
+				}
 			}
 
 			//echo2
@@ -1722,6 +1750,88 @@ void DecodePackage<PointT>::UseDecodeTempoA2(char* udpData, std::vector<TWPointD
 				pointCloud.push_back(std::move(basic_point));
 			}
 			*/
+		}
+		
+		if (m_crosstalk_filter && (3 == blocks_num || 7 == blocks_num))
+		{
+			bool hasCrosstalk = false;
+			double disCrosstalk = 0.f;
+			double pulseCrosstalk = 0;
+			int countCrosstalk = 0;
+			int minChannel = 1;
+			int maxChannel = 1;
+
+			for (int i = 0; i < 64; i++)
+			{
+				if (B_SEQ_Point[i])
+				{
+					countCrosstalk++;
+					pulseCrosstalk += SEQ_Point[i].pulse;
+					minChannel = SEQ_Point[i].channel;
+					disCrosstalk += SEQ_Point[i].distance;
+					for (int j = i + 1; j < 64; j++)
+					{
+						if (!B_SEQ_Point[j] || fabs(SEQ_Point[j - 1].distance - SEQ_Point[j].distance) > 3)
+						{
+							maxChannel = SEQ_Point[j - 1].channel;
+							i = j;
+							break;
+						}
+						else
+						{
+							countCrosstalk++;
+							pulseCrosstalk += SEQ_Point[j].pulse;
+							disCrosstalk += SEQ_Point[j].distance;
+						}
+					}
+
+					//计算串扰，删除串扰点
+					//计算平均值
+					disCrosstalk = disCrosstalk / countCrosstalk;
+					pulseCrosstalk = pulseCrosstalk / countCrosstalk;
+
+					//处理串扰
+					for (int k = 0; k < 64; k++)
+					{
+						double curDist = fabs(SEQ_Point[k].distance - disCrosstalk);
+						double subDist = (disCrosstalk * (1 - cos(12.5*m_calRA)) + 0.2);
+						if ((pulseCrosstalk - SEQ_Point[k].pulse) > m_crosstalkDeletePulse &&
+							fabs(SEQ_Point[k].distance - disCrosstalk) < (disCrosstalk * (1 - cos(12.5*m_calRA)) + 0.2)) //sin(0.5°*4)*ds*tan(45°)
+						{
+							SEQ_Point[k].distance = 0;
+							SEQ_Point[k].pulse = 0;
+							//continue;
+						}
+						if (countCrosstalk >= 3 && ((SEQ_Point[k].channel > minChannel - 12 && SEQ_Point[k].channel < minChannel) ||
+							(SEQ_Point[k].channel < maxChannel + 12 && SEQ_Point[k].channel > maxChannel)))
+						{
+							if (fabs(disCrosstalk - SEQ_Point[k].distance) < 15 &&
+								pulseCrosstalk - SEQ_Point[k].pulse > 10)
+							{
+								if (SEQ_Point[k].distance > 35)
+								{
+									SEQ_Point[k].distance = 0;
+									SEQ_Point[k].pulse = 0;
+								}
+								else if (SEQ_Point[k].z > m_crosstalkNoDeleteHeigh)
+								{
+									SEQ_Point[k].distance = 0;
+									SEQ_Point[k].pulse = 0;
+								}
+							}
+						}
+					}
+
+					countCrosstalk = 0;
+					pulseCrosstalk = 0;
+					disCrosstalk = 0;
+				}
+			}
+
+			for (int k = 0; k < 64; k++)
+			{
+				pointCloud.push_back(std::move(SEQ_Point[k]));
+			}
 		}
 	}
 }
@@ -2262,6 +2372,10 @@ void DecodePackage<PointT>::UseDecodeScope256Depth(char* udpData, std::vector<TW
 template <typename PointT>
 void DecodePackage<PointT>::UseDecodeFocus(char* udpData, std::vector<TWPointData>& pointCloud)
 {
+	TWPointData SEQ_Point[64];
+	bool B_SEQ_Point[64] = {0};
+	float MaxPulse = m_crosstalkPulse;
+
 	double horizontalAngle = 0;
 	//face id
 	unsigned short mirror = 0;
@@ -2272,6 +2386,12 @@ void DecodePackage<PointT>::UseDecodeFocus(char* udpData, std::vector<TWPointDat
 		int offset = blocks_num * 140;
 		if (0 == blocks_num || 4 == blocks_num)
 		{
+			for (int i = 0; i < 64; i++)
+			{
+				SEQ_Point[i] = TWPointData();
+				B_SEQ_Point[i] = false;
+			}
+
 			//horizontal angle index: 128-131
 			int HextoAngle = FourHexToInt(udpData[offset + 128], udpData[offset + 129], udpData[offset + 130], udpData[offset + 131]);
 			horizontalAngle = HextoAngle  * 0.00001;
@@ -2347,7 +2467,19 @@ void DecodePackage<PointT>::UseDecodeFocus(char* udpData, std::vector<TWPointDat
 				basic_point.t_sec = blockSecond;
 				basic_point.t_usec = blockMicrosecond;
 
-				pointCloud.push_back(std::move(basic_point));
+				if (m_crosstalk_filter)
+				{
+					if (hexPulse1 * m_calPulseFPGA > MaxPulse && basic_point.z >= m_crosstalkNoDeleteHeigh)
+						B_SEQ_Point[channel - 1] = true;
+					else
+						B_SEQ_Point[channel - 1] = false;
+
+					SEQ_Point[channel - 1] = basic_point;
+				}
+				else
+				{
+					pointCloud.push_back(std::move(basic_point));
+				}
 			}
 
 			//echo2
@@ -2371,6 +2503,88 @@ void DecodePackage<PointT>::UseDecodeFocus(char* udpData, std::vector<TWPointDat
 			pointCloud.push_back(std::move(basic_point));
 			}
 			*/
+		}
+
+		if (m_crosstalk_filter && (3 == blocks_num || 7 == blocks_num))
+		{
+			bool hasCrosstalk = false;
+			double disCrosstalk = 0.f;
+			double pulseCrosstalk = 0;
+			int countCrosstalk = 0;
+			int minChannel = 1;
+			int maxChannel = 1;
+
+			for (int i = 0; i < 64; i++)
+			{
+				if (B_SEQ_Point[i])
+				{
+					countCrosstalk++;
+					pulseCrosstalk += SEQ_Point[i].pulse;
+					minChannel = SEQ_Point[i].channel;
+					disCrosstalk += SEQ_Point[i].distance;
+					for (int j = i + 1; j < 64; j++)
+					{
+						if (!B_SEQ_Point[j] || fabs(SEQ_Point[j - 1].distance - SEQ_Point[j].distance) > 3)
+						{
+							maxChannel = SEQ_Point[j - 1].channel;
+							i = j;
+							break;
+						}
+						else
+						{
+							countCrosstalk++;
+							pulseCrosstalk += SEQ_Point[j].pulse;
+							disCrosstalk += SEQ_Point[j].distance;
+						}
+					}
+
+					//计算串扰，删除串扰点
+					//计算平均值
+					disCrosstalk = disCrosstalk / countCrosstalk;
+					pulseCrosstalk = pulseCrosstalk / countCrosstalk;
+
+					//处理串扰
+					for (int k = 0; k < 64; k++)
+					{
+						double curDist = fabs(SEQ_Point[k].distance - disCrosstalk);
+						double subDist = (disCrosstalk * (1 - cos(12.5*m_calRA)) + 0.2);
+						if ((pulseCrosstalk - SEQ_Point[k].pulse) > m_crosstalkDeletePulse &&
+							fabs(SEQ_Point[k].distance - disCrosstalk) < (disCrosstalk * (1 - cos(12.5*m_calRA)) + 0.2)) //sin(0.5°*4)*ds*tan(45°)
+						{
+							SEQ_Point[k].distance = 0;
+							SEQ_Point[k].pulse = 0;
+							//continue;
+						}
+						if (countCrosstalk >= 3 && ((SEQ_Point[k].channel > minChannel - 12 && SEQ_Point[k].channel < minChannel) ||
+							(SEQ_Point[k].channel < maxChannel + 12 && SEQ_Point[k].channel > maxChannel)))
+						{
+							if (fabs(disCrosstalk - SEQ_Point[k].distance) < 15 &&
+								pulseCrosstalk - SEQ_Point[k].pulse > 10)
+							{
+								if (SEQ_Point[k].distance > 35)
+								{
+									SEQ_Point[k].distance = 0;
+									SEQ_Point[k].pulse = 0;
+								}
+								else if (SEQ_Point[k].z > m_crosstalkNoDeleteHeigh)
+								{
+									SEQ_Point[k].distance = 0;
+									SEQ_Point[k].pulse = 0;
+								}
+							}
+						}
+					}
+
+					countCrosstalk = 0;
+					pulseCrosstalk = 0;
+					disCrosstalk = 0;
+				}
+			}
+
+			for (int k = 0; k < 64; k++)
+			{
+				pointCloud.push_back(std::move(SEQ_Point[k]));
+			}
 		}
 	}
 }
