@@ -39,6 +39,7 @@
 #include <thread>
 #include <iostream>
 #include <string>
+#include <memory>
 
 #include <functional>
 #include <string.h>
