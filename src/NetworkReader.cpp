@@ -45,6 +45,30 @@ NetworkReader::NetworkReader(TWLidarType lidarType, std::string lidarIP, std::st
 
 NetworkReader::~NetworkReader()
 {
+	Stop();
+}
+
+void NetworkReader::Start()
+{
+	run_read.store(true);
+
+	if (LT_TensorLite == m_lidarType || LT_TensorPro == m_lidarType || LT_TensorPro_echo2 == m_lidarType || LT_TSP0332 == m_lidarType)
+	{
+		run_exit_gps.store(false);
+		std::thread(std::bind(&NetworkReader::ThreadProcessGPS, this)).detach();
+	}
+	if (LT_Duetto == m_lidarType || LT_Tensor48_Polar == m_lidarType)
+	{
+		run_exit_dif.store(false);
+		std::thread(std::bind(&NetworkReader::ThreadProcessDIF, this)).detach();
+	}
+
+	run_exit_pcloud.store(false);
+	std::thread(std::bind(&NetworkReader::ThreadProcessPointCloud, this)).detach();
+}
+
+void NetworkReader::Stop()
+{
 	run_read.store(false);
 
 	while (!run_exit_pcloud)
@@ -59,25 +83,10 @@ NetworkReader::~NetworkReader()
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));
 	}
-}
 
-void NetworkReader::Start()
-{
-	run_read.store(true);
-
-	if (LT_TensorLite == m_lidarType || LT_TensorPro == m_lidarType || LT_TensorPro_echo2 == m_lidarType || LT_TSP0332 == m_lidarType)
-	{
-		run_exit_gps.store(false);
-		std::thread(std::bind(&NetworkReader::ThreadProcessGPS, this)).detach();
-	}
-	if (LT_Duetto == m_lidarType)
-	{
-		run_exit_dif.store(false);
-		std::thread(std::bind(&NetworkReader::ThreadProcessDIF, this)).detach();
-	}
-
-	run_exit_pcloud.store(false);
-	std::thread(std::bind(&NetworkReader::ThreadProcessPointCloud, this)).detach();
+#ifdef _WIN32
+	WSACleanup();
+#endif
 }
 
 void NetworkReader::ThreadProcessPointCloud()
@@ -175,6 +184,13 @@ void NetworkReader::ThreadProcessPointCloud()
 		m_packageCache.PushBackPackage(udp_data);
 
 	}
+
+#ifdef __linux__
+	close(recvSocket);
+#elif _WIN32
+	closesocket(recvSocket);
+#endif
+
 	run_exit_pcloud.store(true);
 
 	USE_EXCEPTION_TIPS(TWException::TWEC_TIPS_EXIT_POINT, std::string("The point cloud data receiver thread has exited!"));
@@ -273,6 +289,13 @@ void NetworkReader::ThreadProcessGPS()
 		m_packageCache.PushBackPackage(udp_data);
 
 	}
+
+#ifdef __linux__
+	close(recvSocket);
+#elif _WIN32
+	closesocket(recvSocket);
+#endif
+
 	run_exit_gps.store(true);
 
 	USE_EXCEPTION_TIPS(TWException::TWEC_TIPS_EXIT_GPS, std::string("The gps data receiver thread has exited!"));
@@ -375,6 +398,12 @@ void NetworkReader::ThreadProcessDIF()
 		m_packageCache.PushBackPackage(udp_data);
 
 	}
+#ifdef __linux__
+	close(recvSocket);
+#elif _WIN32
+	closesocket(recvSocket);
+#endif
+	
 	run_exit_dif.store(true);
 
 	USE_EXCEPTION_TIPS(TWException::TWEC_TIPS_EXIT_DIF, std::string("The dif data receiver thread has exited!"));

@@ -82,6 +82,7 @@ public:
 	void SetCorrectedAngleToScope192(float angle1, float angle2, float angle3);
 	void SetCorrectionAngleToScopeMiniA2_192(float angle1, float angle2, float angle3);
 	void SetTransform(float rotateX, float rotateY, float rotateZ, float moveX, float moveY, float moveZ);
+	void SetJointabc(bool bJointabc, double node1, double node2, int one_face, int two_face); 
 
 	/*
 	*Register the point cloud callback function.
@@ -104,6 +105,10 @@ public:
 	* run sdk
 	*/
 	void Start();
+	/*
+	* stop sdk
+	*/
+	void Stop();
 
 private:
 	std::shared_ptr<PackageCache> m_packageCache;
@@ -188,6 +193,12 @@ void TanwayLidarSDK<PointT>::SetCorrectedAngleToTSP0332(float angle1, float angl
 	m_decodePackagePtr->SetCorrectionAngleToTSP0332(angle1, angle2);
 }
 
+template <typename PointT> 
+void TanwayLidarSDK<PointT>::SetJointabc(bool bJointabc, double node1, double node2, int one_face, int two_face) 
+{ 
+	m_decodePackagePtr->SetJointabc(bJointabc, node1, node2, one_face, two_face); 
+} 
+
 template <typename PointT>
 TanwayLidarSDK<PointT>::~TanwayLidarSDK()
 {
@@ -231,4 +242,15 @@ void TanwayLidarSDK<PointT>::Start()
 		m_pcapReaderPtr->Start();
 
 	m_decodePackagePtr->Start();
+}
+
+template <typename PointT>
+void TanwayLidarSDK<PointT>::Stop()
+{
+	if (m_networkReaderPtr)
+		m_networkReaderPtr->Stop();
+	if (m_pcapReaderPtr)
+		m_pcapReaderPtr->Stop();
+
+	m_decodePackagePtr->Stop();
 }

@@ -46,22 +46,12 @@ PcapReader::PcapReader(std::string filePath, std::string lidarIP, int localPort,
 
 PcapReader::~PcapReader()
 {
-	run_read.store(false);
-
-	while (!run_exit)
-	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
-	}
+	Stop();
 }
 
 void PcapReader::RereadPcap(std::string pcapPath)
 {
-	run_read.store(false);
-
-	while (!run_exit)
-	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
-	}
+	Stop();
 
 	m_pacpPath = pcapPath;
 	Start();
@@ -77,6 +67,16 @@ void PcapReader::Start()
 	run_read.store(true);
 	run_exit.store(false);
 	std::thread(std::bind(&PcapReader::ThreadLoadProcess, this)).detach();
+}
+
+void PcapReader::Stop()
+{
+	run_read.store(false);
+
+	while (!run_exit)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	}
 }
 
 void PcapReader::ThreadLoadProcess()
